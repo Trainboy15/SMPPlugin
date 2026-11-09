@@ -1,7 +1,7 @@
 shop:
   title: "&8Shop"
   size: 27
-  exitButtonItem: RED_STAINED_GLASS
+  exitButtonItem: RED_STAINED_GLASS_PANE
   exitButtonSlot: 18
   exitButtonItemName: '&4Back'
   exitButtonItemLore: '&fClick to return'
@@ -11,7 +11,7 @@ shop:
       pageItemName: '&bEnd'
       pageItemLore: '&fClick to view end shop'
       pageItemSlot: 11
-      pageTitle: '&bShop - End'
+      pageTitle: '&8Shop - End'
       items:
         '9':
           material: ENDER_CHEST
@@ -91,7 +91,7 @@ shop:
           buy: 350
           sell: 25
         '14':
-          material: NETHER_QUARTZ
+          material: QUARTZ
           amount: 1
           buy: 15
           sell: 5
@@ -215,10 +215,10 @@ shop:
           buy: 250
           sell: 20
 ah:
-  title: '&8Auction (Page)'
-  size: 53
-  OptionSelectedPrefix: '•&b '
-  OptionUnselectedPrefix: '◦&f '
+  title: '&8Auction (Page %page%/%maxpage%)'
+  size: 54
+  OptionSelectedPrefix: '&b• &b'
+  OptionUnselectedPrefix: '&f◦ &f'
   filterButtonItem: CAULDRON
   filterButtonSlot: 47
   filterButtonItemName: '&bFilter'
@@ -238,12 +238,34 @@ ah:
   sortButtonOptions:
     - 'Recently Listed'
     - 'Oldest First'
-    - 'Most Expencive'
-    - 'Cheepest First'
+    - 'Most Expensive'
+    - 'Cheapest First'
   auctionButtonItem: ANVIL
-  filterButtonSlot: 49
-  filterButtonItemName: '&bAuction'
-  filterButtonOptions:
-    - '&fClick to refesh'
+  auctionButtonSlot: 49
+  auctionButtonItemName: '&bAuction'
+  auctionButtonOptions:
+    - '&fClick to refresh'
     - '&7Sell an item with'
     - '&7/ah sell <price>'
+  searchButtonItem: OAK_SIGN
+  searchButtonSlot: 50
+  searchButtonItemName: '&bSearch'
+  searchButtonOptions:
+    - '&fClick to search'
+  yourAuctionsButtonItem: CHEST
+  yourAuctionsButtonSlot: 51
+  yourAuctionsButtonItemName: '&bYour Items'
+  yourAuctionsButtonOptions:
+    - '&fClick to view the items you have listed'
+  nextPageButtonItem: ARROW
+  nextPageButtonSlot: 52
+  nextPageButtonItemName: '&bNext Page'
+  nextPageButtonOptions:
+    - '&fClick to view the next page'
+  lastPageButtonItem: ARROW
+  lastPageButtonSlot: 45
+  lastPageButtonItemName: '&bPrevious Page'
+  lastPageButtonOptions:
+    - '&fClick to view the previous page'
+
+  

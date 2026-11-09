@@ -1,14 +1,15 @@
 package trainboy15.smpplugin;
 
-import trainboy15.smpplugin.commands.Shop;
-
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
+import trainboy15.smpplugin.commands.Auction;
+import trainboy15.smpplugin.commands.Shop;
 
 public class SMPPlugin extends JavaPlugin {
 
     private Economy econ = null;
+    private Auction auctionHandler;
 
     @Override
     public void onEnable() {
@@ -21,7 +22,6 @@ public class SMPPlugin extends JavaPlugin {
             return;
         }
 
-
         // Register /shop command and GUI click listener
         Shop shopHandler = new Shop(this);
         if (getCommand("shop") != null) {
@@ -29,11 +29,21 @@ public class SMPPlugin extends JavaPlugin {
         }
         getServer().getPluginManager().registerEvents(shopHandler, this);
 
+        // Register /ah command and GUI click listener
+        auctionHandler = new Auction(this);
+        if (getCommand("ah") != null) {
+            getCommand("ah").setExecutor(auctionHandler);
+        }
+        getServer().getPluginManager().registerEvents(auctionHandler, this);
+
         getLogger().info("SMP Plugin v" + getDescription().getVersion() + " enabled.");
     }
 
     @Override
     public void onDisable() {
+        if (auctionHandler != null) {
+            auctionHandler.closeDatabase();
+        }
         getLogger().info("SMP Plugin disabled.");
     }
 
