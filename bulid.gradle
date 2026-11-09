@@ -1,0 +1,46 @@
+plugins {
+    id 'java'
+}
+
+group = 'trainboy15'
+version = '1.0.0'
+
+repositories {
+    mavenCentral()
+    // Spigot / Paper Repository
+    maven {
+        name = 'spigotmc-repo'
+        url = 'https://spigotmc.org'
+    }
+    // JitPack Repository (Required for VaultAPI)
+    maven {
+        name = 'jitpack.io'
+        url = 'https://jitpack.io'
+    }
+}
+
+dependencies {
+    compileOnly 'org.spigotmc:spigot-api:1.21.11-R0.1-SNAPSHOT'
+    compileOnly 'com.github.MilkBowl:VaultAPI:1.7.1'
+}
+
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+
+// Automatically replaces ${version} inside your plugin.yml
+processResources {
+    def props = [version: version]
+    inputs.properties props
+    filteringCharset 'UTF-8'
+    filesMatching('plugin.yml') {
+        expand props
+    }
+}

@@ -1,12 +1,16 @@
 name: SMPPlugin
-version: 1
-main: scr.main.Trainboy15.smpplugin.SMPPlugin
-api-version: 1.21.11
+version: '${version}'
+main: trainboy15.smpplugin.SMPPlugin
+api-version: '1.21'
 depend: [Vault]
 description: DonutSMP like SMP plugin
 authors: [Trainboy15]
 
 commands:
+  smp:
+    description: Main SMP command
+    usage: /smp
+    permission: smp.player
   help:
     description: Help command
     usage: /help
@@ -32,7 +36,7 @@ commands:
     usage: /shardshop
     permission: smp.player
   admin:
-    description: Player managemnt
+    description: Player management
     usage: /admin <player>
     permission: smp.admin
 

@@ -7,208 +7,210 @@ shop:
   exitButtonItemLore: '&fClick to return'
   pages:
     page1:
-     pageItem: END_STONE
-     pageItemName: '&bEnd'
-     pageItemLore: '&fClick to view end shop'
-     pageItemSlot: 11
-     pageTitle: '&bShop - End'
-     items:
-      '9':
-        material: ENDER_CHEST
-        amount: 1
-        buy: 2000
-        sell: 150
-      '10':
-        material: ENDER_PEARL
-        amount: 1
-        buy: 70
-        sell: 5
-      '11':
-        material: END_STONE
-        amount: 16
-        buy: 64
-        sell: 16
-      '12':
-        material: DRAGON_BREATH
-        amount: 1
-        buy: 70
-        sell: 15
-      '13':
-        material: END_ROD
-        amount: 1
-        buy: 90
-        sell: 6
-      '14':
-        material: CHORUS_FRUIT
-        amount: 1
-        buy: 50
-        sell: 10
-      '15':
-        material: POPPED_CHORUS_FRUIT
-        amount: 1
-        buy: 25
-        sell: 5
-      '16':
-        material: SHULKER_SHELL
-        amount: 1
-        buy: 325
-        sell: 50
-      '17':
-        material: SHULKER_BOX
-        amount: 1
-        buy: 800
-        sell: 80
+      pageItem: END_STONE
+      pageItemName: '&bEnd'
+      pageItemLore: '&fClick to view end shop'
+      pageItemSlot: 11
+      pageTitle: '&bShop - End'
+      items:
+        '9':
+          material: ENDER_CHEST
+          amount: 1
+          buy: 2000
+          sell: 150
+        '10':
+          material: ENDER_PEARL
+          amount: 1
+          buy: 70
+          sell: 5
+        '11':
+          material: END_STONE
+          amount: 16
+          buy: 64
+          sell: 16
+        '12':
+          material: DRAGON_BREATH
+          amount: 1
+          buy: 70
+          sell: 15
+        '13':
+          material: END_ROD
+          amount: 1
+          buy: 90
+          sell: 6
+        '14':
+          material: CHORUS_FRUIT
+          amount: 1
+          buy: 50
+          sell: 10
+        '15':
+          material: POPPED_CHORUS_FRUIT
+          amount: 1
+          buy: 25
+          sell: 5
+        '16':
+          material: SHULKER_SHELL
+          amount: 1
+          buy: 325
+          sell: 50
+        '17':
+          material: SHULKER_BOX
+          amount: 1
+          buy: 800
+          sell: 80
     page2:
-     pageItem: NETHERACK
-     pageItemName: '&bNether'
-     pageItemLore: '&fClick to view nether shop'
-     pageItemSlot: 12
-     pageTitle: '&8Shop - Nether'
-     items:
-      '9':
-        material: BLAZE_ROD
-        amount: 1
-        buy: 160
-        sell: 5
-      '10':
-        material: NETHER_WART
-        amount: 1
-        buy: 45
-        sell: 15
-      '11':
-        material: GLOWSTONE_DUST
-        amount: 1
-        buy: 20
-        sell: 5
-      '12':
-        material: MAGMA_CREAM
-        amount: 1
-        buy: 50
-        sell: 15
-      '13':
-        material: GHAST_TEAR
-        amount: 1
-        buy: 350
-        sell: 25
-      '14':
-        material: NETHER_QUARTZ
-        amount: 1
-        buy: 15
-        sell: 5
-      '15':
-        material: SOUL_SAND
-        amount: 1
-        buy: 15
-        sell: 5
-      '16':
-        material: MAGMA_BLOCK
-        amount: 1
-        buy: 30
-        sell: 5
-      '17':
-        material: CRYING_OBSIDIAN
-        amount: 1
-        buy: 150
-        sell: 25
+      pageItem: NETHERRACK
+      pageItemName: '&bNether'
+      pageItemLore: '&fClick to view nether shop'
+      pageItemSlot: 12
+      pageTitle: '&8Shop - Nether'
+      items:
+        '9':
+          material: BLAZE_ROD
+          amount: 1
+          buy: 160
+          sell: 5
+        '10':
+          material: NETHER_WART
+          amount: 1
+          buy: 45
+          sell: 15
+        '11':
+          material: GLOWSTONE_DUST
+          amount: 1
+          buy: 20
+          sell: 5
+        '12':
+          material: MAGMA_CREAM
+          amount: 1
+          buy: 50
+          sell: 15
+        '13':
+          material: GHAST_TEAR
+          amount: 1
+          buy: 350
+          sell: 25
+        '14':
+          material: NETHER_QUARTZ
+          amount: 1
+          buy: 15
+          sell: 5
+        '15':
+          material: SOUL_SAND
+          amount: 1
+          buy: 15
+          sell: 5
+        '16':
+          material: MAGMA_BLOCK
+          amount: 1
+          buy: 30
+          sell: 5
+        '17':
+          material: CRYING_OBSIDIAN
+          amount: 1
+          buy: 150
+          sell: 25
     page3:
-     pageItem: TOTEM_OF_UNDYING
-     pageItemName: '&bGear'
-     pageItemSlot: 13
-     pageTitle: '&8Shop - Gear'
-     items:
-      '9':
-        material: OBSIDIAN
-        amount: 1
-        buy: 100
-        sell: 10
-      '10':
-        material: END_CRYSTAL
-        amount: 1
-        buy: 350
-        sell: 50
-      '11':
-        material: RESPAWN_ANCHOR
-        amount: 1
-        buy: 1000
-        sell: 100
-      '12':
-        material: GLOWSTONE
-        amount: 1
-        buy: 100
-        sell: 5
-      '13':
-        material: TOTEM_OF_UNDYING
-        amount: 1
-        buy: 1500
-        sell: 250
-      '14':
-        material: ENDER_PEARL
-        amount: 1
-        buy: 70
-        sell: 5
-      '15':
-        material: GOLDEN_APPLE
-        amount: 1
-        buy: 250
-        sell: 20
-      '16':
-        material: EXPERIENCE_BOTTLE
-        amount: 1
-        buy: 100
-        sell: 10
-      '17':
-        material: ARROW
-        amount: 1
-        buy: 500
-        sell: 1
+      pageItem: TOTEM_OF_UNDYING
+      pageItemName: '&bGear'
+      pageItemLore: '&fClick to view gear shop'
+      pageItemSlot: 13
+      pageTitle: '&8Shop - Gear'
+      items:
+        '9':
+          material: OBSIDIAN
+          amount: 1
+          buy: 100
+          sell: 10
+        '10':
+          material: END_CRYSTAL
+          amount: 1
+          buy: 350
+          sell: 50
+        '11':
+          material: RESPAWN_ANCHOR
+          amount: 1
+          buy: 1000
+          sell: 100
+        '12':
+          material: GLOWSTONE
+          amount: 1
+          buy: 100
+          sell: 5
+        '13':
+          material: TOTEM_OF_UNDYING
+          amount: 1
+          buy: 1500
+          sell: 250
+        '14':
+          material: ENDER_PEARL
+          amount: 1
+          buy: 70
+          sell: 5
+        '15':
+          material: GOLDEN_APPLE
+          amount: 1
+          buy: 250
+          sell: 20
+        '16':
+          material: EXPERIENCE_BOTTLE
+          amount: 1
+          buy: 100
+          sell: 10
+        '17':
+          material: ARROW
+          amount: 1
+          buy: 500
+          sell: 1
     page4:
-     pageItem: COOKED_BEEF
-     pageItemName: '&bFood'
-     pageItemSlot: 14
-     pageTitle: '&8Shop - Food'
-     items:
-      '9':
-        material: OBSIDIAN
-        amount: 1
-        buy: 100
-        sell: 10
-      '10':
-        material: END_CRYSTAL
-        amount: 1
-        buy: 350
-        sell: 50
-      '11':
-        material: RESPAWN_ANCHOR
-        amount: 1
-        buy: 1000
-        sell: 100
-      '12':
-        material: GLOWSTONE
-        amount: 1
-        buy: 100
-        sell: 5
-      '13':
-        material: TOTEM_OF_UNDYING
-        amount: 1
-        buy: 1500
-        sell: 250
-      '14':
-        material: ENDER_PEARL
-        amount: 1
-        buy: 70
-        sell: 5
-      '15':
-        material: GOLDEN_APPLE
-        amount: 1
-        buy: 250
-        sell: 20
-      '16':
-        material: EXPERIENCE_BOTTLE
-        amount: 1
-        buy: 100
-        sell: 10
-      '17':
-        material: ARROW
-        amount: 1
-        buy: 500
-        sell: 1
+      pageItem: COOKED_BEEF
+      pageItemName: '&bFood'
+      pageItemLore: '&fClick to view food shop'
+      pageItemSlot: 14
+      pageTitle: '&8Shop - Food'
+      items:
+        '9':
+          material: POTATO
+          amount: 1
+          buy: 50
+          sell: 15
+        '10':
+          material: SWEET_BERRIES
+          amount: 1
+          buy: 30
+          sell: 10
+        '11':
+          material: MELON_SLICE
+          amount: 1
+          buy: 20
+          sell: 5
+        '12':
+          material: CARROT
+          amount: 1
+          buy: 50
+          sell: 15
+        '13':
+          material: APPLE
+          amount: 1
+          buy: 25
+          sell: 5
+        '14':
+          material: COOKED_CHICKEN
+          amount: 1
+          buy: 30
+          sell: 10
+        '15':
+          material: COOKED_BEEF
+          amount: 1
+          buy: 35
+          sell: 10
+        '16':
+          material: GOLDEN_CARROT
+          amount: 1
+          buy: 100
+          sell: 10
+        '17':
+          material: GOLDEN_APPLE
+          amount: 1
+          buy: 250
+          sell: 20

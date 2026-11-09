@@ -19,6 +19,7 @@ import org.bukkit.inventory.meta.ItemMeta;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Collections;
 
 public class Shop implements CommandExecutor, Listener {
 
@@ -45,33 +46,91 @@ public class Shop implements CommandExecutor, Listener {
     }
 
     private void openInventory(Player player) {
-        int size = plugin.getConfig().getInt("gui.size", 27);
+        int size = plugin.getConfig().getInt("shop.size", 27);
         size = Math.max(9, Math.min(54, size - size % 9));
 
-        String title = color(plugin.getConfig().getString("shop.title", "&bShop"));
+        String title = color(plugin.getConfig().getString("shop.title", "&8Shop"));
         Inventory inventory = Bukkit.createInventory(null, size, title);
 
-        ConfigurationSection itemsSection = plugin.getConfig().getConfigurationSection("shop.items");
-        if (itemsSection != null) {
-            for (String key : itemsSection.getKeys(false)) {
-                String path = "shop.items" + key;
-                int slot = plugin.getConfig().getInt(path + ".slot", -1);
-                String matName = plugin.getConfig().getString(path + ".material", "STONE");
-                Material material = Material.matchMaterial(matName);
+        ConfigurationSection pagesSection = plugin.getConfig().getConfigurationSection("shop.pages");
+        if (pagesSection != null) {
+            for (String pageKey : pagesSection.getKeys(false)) {
+                String path = "shop.pages." + pageKey;
+                int slot = plugin.getConfig().getInt(path + ".pageItemSlot", -1);
+                Material material = Material.matchMaterial(plugin.getConfig().getString(path + ".pageItem", "STONE"));
 
                 if (material != null && slot >= 0 && slot < size) {
-                    int amount = plugin.getConfig().getInt(path + ".amount", 1);
-                    double buyPrice = plugin.getConfig().getDouble(path + ".buy", -1);
-                    double sellPrice = plugin.getConfig().getDouble(path + ".sell", -1);
+                    ItemStack item = new ItemStack(material);
+                    ItemMeta meta = item.getItemMeta();
+                    if (meta != null) {
+                        String name = plugin.getConfig().getString(path + ".pageItemName");
+                        if (name != null) {
+                            meta.setDisplayName(color(name));
+                        }
 
+                        String loreLine = plugin.getConfig().getString(path + ".pageItemLore");
+                        if (loreLine != null && !loreLine.isEmpty()) {
+                            meta.setLore(Collections.singletonList(color(loreLine)));
+                        }
+
+                        item.setItemMeta(meta);
+                    }
+                    inventory.setItem(slot, item);
+                }
+            }
+        }
+
+        player.openInventory(inventory);
+    }
+        private void openPage(Player player, String pageKey) {
+        String pagePath = "shop.pages." + pageKey;
+        ConfigurationSection pageSection = plugin.getConfig().getConfigurationSection(pagePath);
+        if (pageSection == null) return;
+
+        int size = plugin.getConfig().getInt("shop.size", 27);
+        size = Math.max(9, Math.min(54, size - size % 9));
+
+        String rawTitle = pageSection.getString("pageTitle", plugin.getConfig().getString("shop.title", "&8Shop"));
+        Inventory inventory = Bukkit.createInventory(null, size, color(rawTitle));
+
+        // Add Back / Exit Button
+        int exitSlot = plugin.getConfig().getInt("shop.exitButtonSlot", -1);
+        Material exitMat = Material.matchMaterial(plugin.getConfig().getString("shop.exitButtonItem", "RED_STAINED_GLASS"));
+        if (exitMat != null && exitSlot >= 0 && exitSlot < size) {
+            ItemStack exitItem = new ItemStack(exitMat);
+            ItemMeta exitMeta = exitItem.getItemMeta();
+            if (exitMeta != null) {
+                exitMeta.setDisplayName(color(plugin.getConfig().getString("shop.exitButtonItemName", "&4Back")));
+                String exitLore = plugin.getConfig().getString("shop.exitButtonItemLore");
+                if (exitLore != null && !exitLore.isEmpty()) {
+                    exitMeta.setLore(Collections.singletonList(color(exitLore)));
+                }
+                exitItem.setItemMeta(exitMeta);
+            }
+            inventory.setItem(exitSlot, exitItem);
+        }
+
+        // Add Category Shop Items
+        ConfigurationSection itemsSection = pageSection.getConfigurationSection("items");
+        if (itemsSection != null) {
+            for (String slotKey : itemsSection.getKeys(false)) {
+                int slot;
+                try {
+                    slot = Integer.parseInt(slotKey);
+                } catch (NumberFormatException e) {
+                    continue;
+                }
+
+                String itemPath = pagePath + ".items." + slotKey;
+                Material material = Material.matchMaterial(plugin.getConfig().getString(itemPath + ".material", "STONE"));
+                int amount = plugin.getConfig().getInt(itemPath + ".amount", 1);
+                double buyPrice = plugin.getConfig().getDouble(itemPath + ".buy", -1);
+                double sellPrice = plugin.getConfig().getDouble(itemPath + ".sell", -1);
+
+                if (material != null && slot >= 0 && slot < size) {
                     ItemStack item = new ItemStack(material, amount);
                     ItemMeta meta = item.getItemMeta();
                     if (meta != null) {
-                        String displayName = plugin.getConfig().getString(path + ".name");
-                        if (displayName != null) {
-                            meta.setDisplayName(color(displayName));
-                        }
-
                         List<String> lore = new ArrayList<>();
                         if (buyPrice >= 0) {
                             lore.add(color("&aLeft-Click to Buy: &f$" + buyPrice));
@@ -90,28 +149,63 @@ public class Shop implements CommandExecutor, Listener {
         player.openInventory(inventory);
     }
 
+
     @EventHandler
     public void onInventoryClick(InventoryClickEvent event) {
-        String title = color(plugin.getConfig().getString("gui.title", "&bShop"));
-        if (!event.getView().getTitle().equals(title)) return;
-
-        event.setCancelled(true); // Prevents players from taking GUI items
-
         if (!(event.getWhoClicked() instanceof Player)) return;
         Player player = (Player) event.getWhoClicked();
 
-        int clickedSlot = event.getRawSlot();
-        ConfigurationSection itemsSection = plugin.getConfig().getConfigurationSection("shop-items");
-        if (itemsSection == null) return;
+        String viewTitle = event.getView().getTitle();
+        String mainTitle = color(plugin.getConfig().getString("shop.title", "&8Shop"));
+        ConfigurationSection pagesSection = plugin.getConfig().getConfigurationSection("shop.pages");
 
-        for (String key : itemsSection.getKeys(false)) {
-            String path = "shop-items." + key;
-            if (plugin.getConfig().getInt(path + ".slot", -1) == clickedSlot) {
-                handleTransaction(player, path, event.getClick());
-                break;
+        // 1. Check if the player clicked inside the Main Shop Menu
+        if (viewTitle.equals(mainTitle)) {
+            event.setCancelled(true);
+            int clickedSlot = event.getRawSlot();
+            if (clickedSlot < 0 || clickedSlot >= event.getInventory().getSize()) return;
+
+            if (pagesSection != null) {
+                for (String pageKey : pagesSection.getKeys(false)) {
+                    int pageSlot = plugin.getConfig().getInt("shop.pages." + pageKey + ".pageItemSlot", -1);
+                    if (clickedSlot == pageSlot) {
+                        openPage(player, pageKey); // Opens the matching category page
+                        return;
+                    }
+                }
+            }
+            return;
+        }
+
+        // 2. Check if the player clicked inside one of the Category Pages
+        if (pagesSection != null) {
+            for (String pageKey : pagesSection.getKeys(false)) {
+                String pagePath = "shop.pages." + pageKey;
+                String pageTitle = color(plugin.getConfig().getString(pagePath + ".pageTitle", mainTitle));
+
+                if (viewTitle.equals(pageTitle)) {
+                    event.setCancelled(true);
+                    int clickedSlot = event.getRawSlot();
+                    if (clickedSlot < 0 || clickedSlot >= event.getInventory().getSize()) return;
+
+                    // Check if they clicked the Back / Exit button
+                    int exitSlot = plugin.getConfig().getInt("shop.exitButtonSlot", -1);
+                    if (clickedSlot == exitSlot) {
+                        openInventory(player); // Returns to the main shop menu
+                        return;
+                    }
+
+                    // Check if they clicked a purchasable/sellable item
+                    String itemPath = pagePath + ".items." + clickedSlot;
+                    if (plugin.getConfig().contains(itemPath)) {
+                        handleTransaction(player, itemPath, event.getClick());
+                    }
+                    return;
+                }
             }
         }
     }
+
 
     private void handleTransaction(Player player, String path, ClickType click) {
         Economy econ = plugin.getEconomy();
@@ -120,12 +214,13 @@ public class Shop implements CommandExecutor, Listener {
             return;
         }
 
-        Material material = Material.matchMaterial(plugin.getConfig().getString(path + ".material", "STONE"));
+        String matName = plugin.getConfig().getString(path + ".material", "STONE");
+        Material material = Material.matchMaterial(matName);
+        if (material == null) return;
+
         int amount = plugin.getConfig().getInt(path + ".amount", 1);
         double buyPrice = plugin.getConfig().getDouble(path + ".buy", -1);
         double sellPrice = plugin.getConfig().getDouble(path + ".sell", -1);
-
-        if (material == null) return;
 
         // BUYING (Left Click)
         if (click.isLeftClick() && buyPrice >= 0) {
@@ -155,8 +250,8 @@ public class Shop implements CommandExecutor, Listener {
             player.sendMessage(ChatColor.GREEN + "Sold " + amount + "x " + material.name() + " for $" + sellPrice);
         }
     }
-
     private String color(String text) {
         return ChatColor.translateAlternateColorCodes('&', text);
     }
+
 }
