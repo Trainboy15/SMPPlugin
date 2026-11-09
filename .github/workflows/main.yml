@@ -48,7 +48,7 @@ jobs:
         if: failure() && hashFiles('logs/failure-*.log') != ''
         run: |
           git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.email "41898282+github-actions[bot]@://github.com"
           git add "logs/failure-${{ github.run_number }}.log"
           git commit -m "Build #${{ github.run_number }} failure log [skip ci]"
           git push
