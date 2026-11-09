@@ -214,3 +214,36 @@ shop:
           amount: 1
           buy: 250
           sell: 20
+ah:
+  title: '&8Auction (Page)'
+  size: 53
+  OptionSelectedPrefix: '•&b '
+  OptionUnselectedPrefix: '◦&f '
+  filterButtonItem: CAULDRON
+  filterButtonSlot: 47
+  filterButtonItemName: '&bFilter'
+  filterButtonOptions:
+    - 'All Items'
+    - 'Blocks'
+    - 'Tools'
+    - 'Food'
+    - 'Combat'
+    - 'Potions'
+    - 'Books'
+    - 'Ingredients'
+    - 'Utilities'
+  sortButtonItem: HOPPER
+  sortButtonSlot: 48
+  sortButtonItemName: '&bSort'
+  sortButtonOptions:
+    - 'Recently Listed'
+    - 'Oldest First'
+    - 'Most Expencive'
+    - 'Cheepest First'
+  auctionButtonItem: ANVIL
+  filterButtonSlot: 49
+  filterButtonItemName: '&bAuction'
+  filterButtonOptions:
+    - '&fClick to refesh'
+    - '&7Sell an item with'
+    - '&7/ah sell <price>'

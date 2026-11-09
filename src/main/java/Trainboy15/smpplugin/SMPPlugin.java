@@ -1,5 +1,7 @@
 package trainboy15.smpplugin;
 
+import trainboy15.smpplugin.commands.Shop;
+
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -19,12 +21,6 @@ public class SMPPlugin extends JavaPlugin {
             return;
         }
 
-        // Register /smp command and tab completer
-        smpPluginCommand commandExecutor = new smpPluginCommand(this);
-        if (getCommand("smp") != null) {
-            getCommand("smp").setExecutor(commandExecutor);
-            getCommand("smp").setTabCompleter(commandExecutor);
-        }
 
         // Register /shop command and GUI click listener
         Shop shopHandler = new Shop(this);
