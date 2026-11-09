@@ -1,0 +1,54 @@
+name: Build SMPPlugin
+
+on:
+  push:
+    branches: [ main, master ]
+    paths-ignore:
+      - 'logs/**' # Prevents infinite loops when failure logs are committed
+  workflow_dispatch:
+
+permissions:
+  contents: write # Required to create Releases and push failure logs
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Build with Gradle
+        id: gradle_build
+        run: |
+          mkdir -p logs
+          set -o pipefail
+          ./gradlew build --stacktrace 2>&1 | tee "logs/failure-${{ github.run_number }}.log"
+
+      - name: Publish JAR to GitHub Releases
+        if: success()
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "build-${{ github.run_number }}"
+          name: "Build #${{ github.run_number }}"
+          body: "Automated build from commit ${{ github.sha }}"
+          files: build/libs/*.jar
+
+      - name: Save Failure Log to Repository
+        if: failure()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@://github.com"
+          git add "logs/failure-${{ github.run_number }}.log"
+          git commit -m "Build #${{ github.run_number }} failure log [skip ci]"
+          git push
