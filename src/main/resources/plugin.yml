@@ -1,0 +1,45 @@
+name: SMPPlugin
+version: 1
+main: scr.main.Trainboy15.smpplugin.SMPPlugin
+api-version: 1.21.11
+depend: [Vault]
+description: DonutSMP like SMP plugin
+authors: [Trainboy15]
+
+commands:
+  help:
+    description: Help command
+    usage: /help
+    permission: smp.player
+  shop:
+    description: Shop command
+    usage: /shop
+    permission: smp.player
+  ah:
+    description: Ah command
+    usage: /ah
+    permission: smp.player
+  orders:
+    description: Orders command
+    usage: /orders
+    permission: smp.player
+  settings:
+    description: Settings command
+    usage: /settings
+    permission: smp.player
+  shardshop:
+    description: Opens the shardshop
+    usage: /shardshop
+    permission: smp.player
+  admin:
+    description: Player managemnt
+    usage: /admin <player>
+    permission: smp.admin
+
+permissions:
+  smp.player:
+    description: Basic player commands
+    default: true
+  smp.admin:
+    description: Access to SMP admin commands
+    default: op
