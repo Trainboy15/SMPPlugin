@@ -10,7 +10,7 @@ repositories {
     // Spigot / Paper Repository
     maven {
         name = 'spigotmc-repo'
-        url = 'https://spigotmc.org'
+        url = 'https://hub.spigotmc.org/nexus/content/repositories/snapshots/'
     }
     // JitPack Repository (Required for VaultAPI)
     maven {
@@ -23,6 +23,7 @@ dependencies {
     compileOnly 'org.spigotmc:spigot-api:1.21.11-R0.1-SNAPSHOT'
     compileOnly 'com.github.MilkBowl:VaultAPI:1.7.1'
 }
+
 
 
 java {
