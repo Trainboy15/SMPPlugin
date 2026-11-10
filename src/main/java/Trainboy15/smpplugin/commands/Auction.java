@@ -34,17 +34,17 @@ import java.util.stream.Collectors;
 public class Auction implements CommandExecutor, Listener {
 
     private final SMPPlugin plugin;
+    private final Settings settings;
     // Stores active listings in memory (Note: Clears on server restart unless saved to a file/DB)
     private final List<AuctionItem> listings = new ArrayList<>();
     private final Map<UUID, AuctionSession> sessions = new HashMap<>();
     private final Set<UUID> awaitingSearchInput = new HashSet<>();
-    private final Settings settings;
 
-    public Auction(SMPPlugin plugin) {
+    public Auction(SMPPlugin plugin, Settings settings) {
         this.plugin = plugin;
         this.settings = settings;
     }
-    
+
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
