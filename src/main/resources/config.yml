@@ -419,3 +419,44 @@ orders:
         - "&fClick to view the next page"
 settings:
   title: '&8Settings'
+  size: 27
+  EnabledPrefix: '&a✔ &fEnabled'
+  DisabledPrefix: '&c✘ &fDisabled'
+  items:
+    '11':
+      material: BELL
+      name: '&bAuction Notifications'
+      action: toggle_ah_notifications
+      lore:
+        - '&7Receive chat alerts when'
+        - '&7your items are purchased.'
+        - ''
+        - '&fStatus: %status%'
+        - '&eClick to toggle!'
+    '13':
+      material: EMERALD
+      name: '&bListing Confirmation'
+      action: toggle_ah_confirm
+      lore:
+        - '&7Show a confirmation menu'
+        - '&7before listing an item.'
+        - ''
+        - '&fStatus: %status%'
+        - '&eClick to toggle!'
+    '15':
+      material: PAPER
+      name: '&bPrivate Messages'
+      action: toggle_msg
+      lore:
+        - '&7Allow other players to'
+        - '&7send you direct messages.'
+        - ''
+        - '&fStatus: %status%'
+        - '&eClick to toggle!'
+    '22':
+      material: RED_STAINED_GLASS_PANE
+      name: '&cClose'
+      action: close
+      lore:
+        - '&fClick to close menu'
+

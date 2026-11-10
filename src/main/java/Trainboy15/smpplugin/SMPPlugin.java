@@ -6,11 +6,13 @@ import org.bukkit.plugin.java.JavaPlugin;
 import trainboy15.smpplugin.commands.Auction;
 import trainboy15.smpplugin.commands.Orders;
 import trainboy15.smpplugin.commands.Sell;
+import trainboy15.smpplugin.commands.Settings;
 import trainboy15.smpplugin.commands.Shop;
 
 public class SMPPlugin extends JavaPlugin {
 
     private Economy econ = null;
+    private Settings settingsHandler;
     private Auction auctionHandler;
     private Orders ordersHandler;
 
@@ -24,6 +26,13 @@ public class SMPPlugin extends JavaPlugin {
             getServer().getPluginManager().disablePlugin(this);
             return;
         }
+
+        // Register /settings command and GUI click listener first so other handlers can use it
+        settingsHandler = new Settings(this);
+        if (getCommand("settings") != null) {
+            getCommand("settings").setExecutor(settingsHandler);
+        }
+        getServer().getPluginManager().registerEvents(settingsHandler, this);
 
         // Register /shop command and GUI click listener
         Shop shopHandler = new Shop(this);
@@ -42,8 +51,8 @@ public class SMPPlugin extends JavaPlugin {
         }
         getServer().getPluginManager().registerEvents(sellCommand, this);
 
-        // Register /ah command and GUI click listener
-        auctionHandler = new Auction(this);
+        // Register /ah command and GUI click listener (passing settingsHandler)
+        auctionHandler = new Auction(this, settingsHandler);
         if (getCommand("ah") != null) {
             getCommand("ah").setExecutor(auctionHandler);
         }
@@ -78,5 +87,9 @@ public class SMPPlugin extends JavaPlugin {
 
     public Economy getEconomy() {
         return econ;
+    }
+
+    public Settings getSettings() {
+        return settingsHandler;
     }
 }

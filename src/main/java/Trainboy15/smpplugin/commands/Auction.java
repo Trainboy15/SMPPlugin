@@ -38,10 +38,13 @@ public class Auction implements CommandExecutor, Listener {
     private final List<AuctionItem> listings = new ArrayList<>();
     private final Map<UUID, AuctionSession> sessions = new HashMap<>();
     private final Set<UUID> awaitingSearchInput = new HashSet<>();
+    private final Settings settings;
 
     public Auction(SMPPlugin plugin) {
         this.plugin = plugin;
+        this.settings = settings;
     }
+    
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
@@ -116,7 +119,7 @@ public class Auction implements CommandExecutor, Listener {
     }
 
     private void listItem(Player seller, ItemStack item, double price) {
-        if (seller.hasPermission("smp.premium")) {
+        if (seller.hasPermission("smp.premium") || !settings.hasAhConfirm(seller.getUniqueId())) {
             finalizeListing(seller, item, price);
             return;
         }
@@ -781,10 +784,11 @@ public class Auction implements CommandExecutor, Listener {
         buyer.sendMessage(ChatColor.GREEN + "Bought " + listing.getItem().getAmount() + "x "
                 + listing.getItem().getType().name() + " for $" + price + "!");
 
-        if (seller.isOnline() && seller.getPlayer() != null) {
+        if (seller.isOnline() && seller.getPlayer() != null && settings.hasAhNotifications(seller.getUniqueId())) {
             seller.getPlayer().sendMessage(ChatColor.GREEN + buyer.getName() + " bought your "
-                    + listing.getItem().getType().name() + " for $" + price + "!");
+            + listing.getItem().getType().name() + " for $" + price + "!");
         }
+
 
         AuctionSession session = sessions.computeIfAbsent(buyer.getUniqueId(), k -> new AuctionSession());
         openInventory(buyer, session);
