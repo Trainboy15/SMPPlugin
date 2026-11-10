@@ -1,13 +1,16 @@
 package trainboy15.smpplugin.commands;
-import trainboy15.smpplugin.SMPPlugin;
 
 import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
+import org.bukkit.command.TabCompleter;
 import org.bukkit.plugin.java.JavaPlugin;
 
-public class Reload implements CommandExecutor {
+import java.util.Collections;
+import java.util.List;
+
+public class Reload implements CommandExecutor, TabCompleter {
 
     private final JavaPlugin plugin;
 
@@ -17,16 +20,28 @@ public class Reload implements CommandExecutor {
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        // Check if the sender has permission
-        if (!sender.hasPermission("smp.admin")) {
-            sender.sendMessage(ChatColor.RED + "You do not have permission to use this command.");
+        // Handle /smp reload
+        if (args.length == 1 && args[0].equalsIgnoreCase("reload")) {
+            if (!sender.hasPermission("smp.admin")) {
+                sender.sendMessage(ChatColor.RED + "You do not have permission to use this command.");
+                return true;
+            }
+
+            plugin.reloadConfig();
+            sender.sendMessage(ChatColor.GREEN + "Configuration reloaded successfully!");
             return true;
         }
 
-        // Reload the config.yml file
-        plugin.reloadConfig();
-        sender.sendMessage(ChatColor.GREEN + "Configuration reloaded successfully!");
-        
+        // Default /smp message if no valid subcommand is given
+        sender.sendMessage(ChatColor.YELLOW + "Usage: /smp reload");
         return true;
+    }
+
+    @Override
+    public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
+        if (args.length == 1 && sender.hasPermission("smp.admin")) {
+            return Collections.singletonList("reload");
+        }
+        return Collections.emptyList();
     }
 }

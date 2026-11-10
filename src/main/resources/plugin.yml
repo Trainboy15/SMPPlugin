@@ -44,7 +44,7 @@ commands:
     description: Player management
     usage: /admin <player>
     permission: smp.admin
-  reload:
+  smp reload:
     description: Reloads plugin config
     permission: smp.admin
 
