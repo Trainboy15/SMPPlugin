@@ -92,8 +92,9 @@ public class Auction implements CommandExecutor, Listener {
 
     private void openInventory(Player player, int page, String searchQuery) {
         int size = plugin.getConfig().getInt("ah.size", 54);
-        size = Math.max(9, Math.min(54, size - (size % 9)));
-
+        size = Math.max(18, Math.min(54, size - (size % 9))); // Minimum 18 so there is room for items + menu bar
+        int itemSlots = size - 9; // Reserve the bottom row (9 slots) for menu buttons
+    
         // Filter listings if a search query was provided
         List<AuctionItem> filtered = listings;
         if (searchQuery != null && !searchQuery.isEmpty()) {
@@ -102,23 +103,40 @@ public class Auction implements CommandExecutor, Listener {
                     .filter(item -> matchesSearch(item.getItem(), queryLower))
                     .collect(Collectors.toList());
         }
-
-        int maxPages = Math.max(1, (int) Math.ceil((double) filtered.size() / size));
+    
+        int maxPages = Math.max(1, (int) Math.ceil((double) filtered.size() / itemSlots));
         int currentPage = Math.max(1, Math.min(page, maxPages));
-
+    
         String rawTitle = plugin.getConfig().getString("ah.title", "&8Auction (%page%/%maxpage%)");
         String title = color(rawTitle
                 .replace("%page%", String.valueOf(currentPage))
                 .replace("%maxpage%", String.valueOf(maxPages)));
-
+    
         Inventory inventory = Bukkit.createInventory(null, size, title);
-
-        int startIndex = (currentPage - 1) * size;
-        for (int i = 0; i < size && (startIndex + i) < filtered.size(); i++) {
+    
+        // Populate auction listings (only up to itemSlots)
+        int startIndex = (currentPage - 1) * itemSlots;
+        for (int i = 0; i < itemSlots && (startIndex + i) < filtered.size(); i++) {
             AuctionItem auctionItem = filtered.get(startIndex + i);
             inventory.setItem(i, createDisplayItem(auctionItem));
         }
-
+    
+        // Populate menu items dynamically from config keys
+        ConfigurationSection itemsSection = plugin.getConfig().getConfigurationSection("ah.items");
+        if (itemsSection != null) {
+            for (String key : itemsSection.getKeys(false)) {
+                try {
+                    int slot = Integer.parseInt(key);
+                    if (slot >= 0 && slot < size) {
+                        // Pass index 0 as the default selected option (update this with player's actual state later)
+                        inventory.setItem(slot, createMenuItem(slot, 0));
+                    }
+                } catch (NumberFormatException ignored) {
+                    plugin.getLogger().warning("Invalid slot number in config: " + key);
+                }
+            }
+        }
+    
         player.openInventory(inventory);
     }
 
@@ -134,7 +152,7 @@ public class Auction implements CommandExecutor, Listener {
         }
         return false;
     }
-
+    
     private ItemStack createDisplayItem(AuctionItem auctionItem) {
         ItemStack display = auctionItem.getItem().clone();
         ItemMeta meta = display.getItemMeta();
@@ -149,36 +167,140 @@ public class Auction implements CommandExecutor, Listener {
         }
         return display;
     }
+    private ItemStack createMenuItem(int slot, int selectedIndex) {
+        String path = "ah.items." + slot;
+        String matName = plugin.getConfig().getString(path + ".material", "STONE");
+        Material material = Material.matchMaterial(matName);
+        if (material == null) material = Material.STONE;
 
-    @EventHandler
-    public void onInventoryClick(InventoryClickEvent event) {
-        if (!(event.getWhoClicked() instanceof Player)) return;
-        Player buyer = (Player) event.getWhoClicked();
+        ItemStack display = new ItemStack(material);
+        ItemMeta meta = display.getItemMeta();
 
-        // Check if the clicked inventory is the Auction House
-        String titlePrefix = color(plugin.getConfig().getString("ah.title", "&8Auction").split("%page%")[0]);
-        if (!event.getView().getTitle().startsWith(titlePrefix)) return;
+        if (meta != null) {
+            String name = plugin.getConfig().getString(path + ".name", "");
+            meta.setDisplayName(color(name));
 
-        // Prevent players from taking display items or putting items into the GUI
-        event.setCancelled(true);
+            List<String> rawOptions = plugin.getConfig().getStringList(path + ".options");
+            String action = plugin.getConfig().getString(path + ".action", "");
+            String selectedPrefix = plugin.getConfig().getString("ah.OptionSelectedPrefix", "&b• &b");
+            String unselectedPrefix = plugin.getConfig().getString("ah.OptionUnselectedPrefix", "&f◦ &f");
 
-        if (event.getClickedInventory() == null || event.getClickedInventory() != event.getView().getTopInventory()) {
-            return;
+            List<String> lore = new ArrayList<>();
+            for (int i = 0; i < rawOptions.size(); i++) {
+                String line = rawOptions.get(i);
+                // Apply bullet prefixes only to toggleable lists like filter and sort
+                if (action.equalsIgnoreCase("filter") || action.equalsIgnoreCase("sort")) {
+                    String prefix = (i == selectedIndex) ? selectedPrefix : unselectedPrefix;
+                    lore.add(color(prefix + line));
+                } else {
+                    lore.add(color(line));
+                }
+            }
+
+            meta.setLore(lore);
+            display.setItemMeta(meta);
         }
 
-        ItemStack clicked = event.getCurrentItem();
-        if (clicked == null || clicked.getType() == Material.AIR) return;
-
-        // Match the clicked display item back to an active listing
-        AuctionItem targetListing = findMatchingListing(clicked);
-        if (targetListing == null) {
-            buyer.sendMessage(ChatColor.RED + "This item is no longer available.");
-            buyer.closeInventory();
-            return;
-        }
-
-        handlePurchase(buyer, targetListing);
+        return display;
     }
+
+private final Map<UUID, AuctionSession> sessions = new HashMap<>();
+
+@EventHandler
+public void onInventoryClick(InventoryClickEvent event) {
+    if (!(event.getWhoClicked() instanceof Player)) return;
+    Player player = (Player) event.getWhoClicked();
+
+    // Check if the clicked inventory is the Auction House
+    String titlePrefix = color(plugin.getConfig().getString("ah.title", "&8Auction").split("%page%")[0]);
+    if (!event.getView().getTitle().startsWith(titlePrefix)) return;
+
+    event.setCancelled(true);
+
+    if (event.getClickedInventory() == null || event.getClickedInventory() != event.getView().getTopInventory()) {
+        return;
+    }
+
+    ItemStack clicked = event.getCurrentItem();
+    if (clicked == null || clicked.getType() == Material.AIR) return;
+
+    int slot = event.getSlot();
+    int inventorySize = event.getView().getTopInventory().getSize();
+    int itemSlots = inventorySize - 9;
+
+    // 1. Check if the player clicked the bottom menu bar
+    if (slot >= itemSlots) {
+        handleMenuClick(player, slot, event.isRightClick());
+        return;
+    }
+
+    // 2. Otherwise, the player clicked an auction listing
+    AuctionItem targetListing = findMatchingListing(clicked);
+    if (targetListing == null) {
+        player.sendMessage(ChatColor.RED + "This item is no longer available.");
+        player.closeInventory();
+        return;
+    }
+
+    handlePurchase(player, targetListing);
+}
+
+    private void handleMenuClick(Player player, int slot, boolean isRightClick) {
+        String path = "ah.items." + slot;
+        String action = plugin.getConfig().getString(path + ".action");
+        if (action == null) return; // Empty glass pane / filler slot
+
+        AuctionSession session = sessions.computeIfAbsent(player.getUniqueId(), k -> new AuctionSession());
+        List<String> options = plugin.getConfig().getStringList(path + ".options");
+
+        switch (action.toLowerCase()) {
+            case "next":
+                session.page++;
+                openInventory(player, session);
+                break;
+
+            case "previous":
+                session.page = Math.max(1, session.page - 1);
+                openInventory(player, session);
+                break;
+
+            case "filter":
+                if (!options.isEmpty()) {
+                    // Left-click goes forward, right-click goes backward
+                    int step = isRightClick ? -1 : 1;
+                    session.filterIndex = Math.floorMod(session.filterIndex + step, options.size());
+                    session.page = 1; // Reset to page 1 when changing filters
+                    openInventory(player, session);
+                }
+                break;
+
+            case "sort":
+                if (!options.isEmpty()) {
+                    int step = isRightClick ? -1 : 1;
+                    session.sortIndex = Math.floorMod(session.sortIndex + step, options.size());
+                    session.page = 1;
+                    openInventory(player, session);
+                }
+                break;
+
+            case "refresh":
+                openInventory(player, session);
+                break;
+
+            case "own":
+                session.viewingOwnItems = !session.viewingOwnItems;
+                session.page = 1;
+                openInventory(player, session);
+                break;
+
+            case "search":
+                player.closeInventory();
+                player.sendMessage(color("&eType your search query in chat (or type &ccancel &eto abort):"));
+                // Flag player for chat input listener here
+                break;
+        }
+    }
+
 
     private AuctionItem findMatchingListing(ItemStack displayItem) {
         // Strip the last 4 lore lines we added in createDisplayItem to compare the original item

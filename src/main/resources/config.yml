@@ -215,57 +215,65 @@ shop:
           buy: 250
           sell: 20
 ah:
-  title: '&8Auction (Page %page%/%maxpage%)'
+  title: "&8Auction (Page %page%/%maxpage%)"
   size: 54
-  OptionSelectedPrefix: '&b• &b'
-  OptionUnselectedPrefix: '&f◦ &f'
-  filterButtonItem: CAULDRON
-  filterButtonSlot: 47
-  filterButtonItemName: '&bFilter'
-  filterButtonOptions:
-    - 'All Items'
-    - 'Blocks'
-    - 'Tools'
-    - 'Food'
-    - 'Combat'
-    - 'Potions'
-    - 'Books'
-    - 'Ingredients'
-    - 'Utilities'
-  sortButtonItem: HOPPER
-  sortButtonSlot: 48
-  sortButtonItemName: '&bSort'
-  sortButtonOptions:
-    - 'Recently Listed'
-    - 'Oldest First'
-    - 'Most Expensive'
-    - 'Cheapest First'
-  auctionButtonItem: ANVIL
-  auctionButtonSlot: 49
-  auctionButtonItemName: '&bAuction'
-  auctionButtonOptions:
-    - '&fClick to refresh'
-    - '&7Sell an item with'
-    - '&7/ah sell <price>'
-  searchButtonItem: OAK_SIGN
-  searchButtonSlot: 50
-  searchButtonItemName: '&bSearch'
-  searchButtonOptions:
-    - '&fClick to search'
-  yourAuctionsButtonItem: CHEST
-  yourAuctionsButtonSlot: 51
-  yourAuctionsButtonItemName: '&bYour Items'
-  yourAuctionsButtonOptions:
-    - '&fClick to view the items you have listed'
-  nextPageButtonItem: ARROW
-  nextPageButtonSlot: 52
-  nextPageButtonItemName: '&bNext Page'
-  nextPageButtonOptions:
-    - '&fClick to view the next page'
-  lastPageButtonItem: ARROW
-  lastPageButtonSlot: 45
-  lastPageButtonItemName: '&bPrevious Page'
-  lastPageButtonOptions:
-    - '&fClick to view the previous page'
+  OptionSelectedPrefix: "&b• &b"
+  OptionUnselectedPrefix: "&f◦ &f"
+  items:
+    '45':
+      material: ARROW
+      name: "&bPrevious Page"
+      action: previous
+      options:
+        - "&fClick to view the previous page"
+    '47':
+      material: CAULDRON
+      name: "&bFilter"
+      action: filter
+      options:
+        - "All Items"
+        - "Blocks"
+        - "Tools"
+        - "Food"
+        - "Combat"
+        - "Potions"
+        - "Books"
+        - "Ingredients"
+        - "Utilities"
+    '48':
+      material: HOPPER
+      name: "&bSort"
+      action: sort
+      options:
+        - "Recently Listed"
+        - "Oldest First"
+        - "Most Expensive"
+        - "Cheapest First"
+    '49':
+      material: ANVIL
+      name: "&bAuction"
+      action: refresh
+      options:
+        - "&fClick to refresh"
+        - "&7Sell an item with"
+        - "&7/ah sell <price>"
+    '50':
+      material: OAK_SIGN
+      name: "&bSearch"
+      action: search
+      options:
+        - "&fClick to search"
+    '51':
+      material: CHEST
+      name: "&bYour Items"
+      action: own
+      options:
+        - "&fClick to view the items you have listed"
+    '53':
+      material: ARROW
+      name: "&bNext Page"
+      action: next
+      options:
+        - "&fClick to view the next page"
 
   
