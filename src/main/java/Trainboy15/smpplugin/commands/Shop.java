@@ -1,6 +1,7 @@
 package trainboy15.smpplugin.commands;
 
 import trainboy15.smpplugin.SMPPlugin;
+import trainboy15.smpplugin.commands.Sell;
 
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Bukkit;
