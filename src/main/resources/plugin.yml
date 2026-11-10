@@ -28,7 +28,7 @@ commands:
     description: Ah command
     usage: /ah
     permission: smp.player
-    tpa:
+  tpa:
     description: Request to teleport to a player
     usage: /tpa <player>
     permission: smp.player
