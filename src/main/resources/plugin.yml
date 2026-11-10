@@ -28,6 +28,22 @@ commands:
     description: Ah command
     usage: /ah
     permission: smp.player
+    tpa:
+    description: Request to teleport to a player
+    usage: /tpa <player>
+    permission: smp.player
+  tpahere:
+    description: Request a player to teleport to you
+    usage: /tpahere <player>
+    permission: smp.player
+  tpaccept:
+    description: Accept an incoming teleport request
+    usage: /tpaccept
+    permission: smp.player
+  tpadeny:
+    description: Deny an incoming teleport request
+    usage: /tpadeny
+    permission: smp.player
   orders:
     description: Orders command
     usage: /orders
