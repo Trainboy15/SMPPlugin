@@ -4,6 +4,7 @@ import net.milkbowl.vault.economy.Economy;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 import trainboy15.smpplugin.commands.Auction;
+import trainboy15.smpplugin.commands.Sell;
 import trainboy15.smpplugin.commands.Shop;
 
 public class SMPPlugin extends JavaPlugin {
@@ -28,10 +29,15 @@ public class SMPPlugin extends JavaPlugin {
             getCommand("shop").setExecutor(shopHandler);
         }
         getServer().getPluginManager().registerEvents(shopHandler, this);
-        
+
+        // Register /sell and /sellgui commands and GUI close listener
         Sell sellCommand = new Sell(this);
-        getCommand("sell").setExecutor(sellCommand);
-        getCommand("sellgui").setExecutor(sellCommand);
+        if (getCommand("sell") != null) {
+            getCommand("sell").setExecutor(sellCommand);
+        }
+        if (getCommand("sellgui") != null) {
+            getCommand("sellgui").setExecutor(sellCommand);
+        }
         getServer().getPluginManager().registerEvents(sellCommand, this);
 
         // Register /ah command and GUI click listener

@@ -19,6 +19,11 @@ commands:
     description: Shop command
     usage: /shop
     permission: smp.player
+  sell:
+    description: Opens the sell GUI
+    usage: /sell
+    permission: smp.player
+    aliases: [sellgui]
   ah:
     description: Ah command
     usage: /ah
