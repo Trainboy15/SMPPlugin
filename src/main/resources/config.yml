@@ -228,7 +228,7 @@ ah:
       size: 27
       items:
         '18':
-          material: ARROW
+          material: RED_STAINED_GLASS_PANE
           name: "&4Back"
           action: back
           lore:
@@ -294,5 +294,24 @@ ah:
       action: next
       options:
         - "&fClick to view the next page"
+tpa:
+  confirmRequest:
+    title: '&8Confirm Reqeust'
+    '10':
+      material: RED_STAINED_GLASS_PANE
+      name: '&4Cancel'
+      lore: '&fClick to cancel'
+      action: cancel
+    '13':
+      material: HEAD
+      name: '&bPlayer'
+      lore: '&f%player%'
+    '16':
+      material: GREEN_STAINED_GLASS_PANE
+      name: '&aConfirm'
+      lore: '&fClick to confirm'
+      action: confirm
+  incomingRequest:
+    message: '&b%player% &fsend you a &f%type% &freqeust. &fType &b/tpaccept &for &b/tpadeny'
 
   
