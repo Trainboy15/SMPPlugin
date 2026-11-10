@@ -102,7 +102,7 @@ public class Auction implements CommandExecutor, Listener {
                 return true;
             }
 
-            // Store pending listing and open confirmation GUI
+            // Clone the item before listing or opening the confirmation GUI
             listItem(player, itemInHand.clone(), price);
             return true;
         }
@@ -116,6 +116,11 @@ public class Auction implements CommandExecutor, Listener {
     }
 
     private void listItem(Player seller, ItemStack item, double price) {
+        if (seller.hasPermission("smp.premium")) {
+            finalizeListing(seller, item, price);
+            return;
+        }
+
         AuctionSession session = sessions.computeIfAbsent(seller.getUniqueId(), k -> new AuctionSession());
         session.pendingItem = item;
         session.pendingPrice = price;
@@ -195,7 +200,7 @@ public class Auction implements CommandExecutor, Listener {
         int maxPages = Math.max(1, (int) Math.ceil((double) filtered.size() / itemSlots));
         session.page = Math.max(1, Math.min(session.page, maxPages));
 
-        String rawTitle = plugin.getConfig().getString("ah.title", "&8Auction (%page%/%maxpage%)");
+        String rawTitle = plugin.getConfig().getString("ah.title", "&8Auction (Page %page%/%maxpage%)");
         String title = color(rawTitle
                 .replace("%page%", String.valueOf(session.page))
                 .replace("%maxpage%", String.valueOf(maxPages)));
@@ -250,7 +255,7 @@ public class Auction implements CommandExecutor, Listener {
         int maxPages = Math.max(1, (int) Math.ceil((double) ownListings.size() / itemSlots));
         session.page = Math.max(1, Math.min(session.page, maxPages));
 
-        String rawTitle = plugin.getConfig().getString("ah.yourItems.title", "&8Your Items (%page%/%maxpage%)");
+        String rawTitle = plugin.getConfig().getString("ah.yourItems.title", "&8Auction -> Your Items");
         String title = color(rawTitle
                 .replace("%page%", String.valueOf(session.page))
                 .replace("%maxpage%", String.valueOf(maxPages)));
@@ -318,30 +323,30 @@ public class Auction implements CommandExecutor, Listener {
                 ? item.getItemMeta().getDisplayName()
                 : item.getType().name().replace("_", " ").toLowerCase();
 
-        // Supports material: '%item%', material: 'ITEM', or action: 'display'
-        if (action.equalsIgnoreCase("display")
-                || matConfig.equalsIgnoreCase("%item%")
-                || matConfig.equalsIgnoreCase("ITEM")) {
+        String formattedPrice = "$" + price;
+
+        // Supports material: '%item%' or action: 'display'
+        if (matConfig.equalsIgnoreCase("%item%") || matConfig.equalsIgnoreCase("ITEM") || action.equalsIgnoreCase("display")) {
             ItemStack preview = item.clone();
             ItemMeta meta = preview.getItemMeta();
             if (meta != null) {
                 if (plugin.getConfig().contains(path + ".name")) {
                     meta.setDisplayName(color(plugin.getConfig().getString(path + ".name", "")
                             .replace("%itemName%", itemName)
-                            .replace("%price%", String.valueOf(price))));
+                            .replace("%price%", formattedPrice)));
                 }
                 List<String> lore = meta.hasLore() ? new ArrayList<>(meta.getLore()) : new ArrayList<>();
                 if (plugin.getConfig().isList(path + ".lore")) {
                     for (String line : plugin.getConfig().getStringList(path + ".lore")) {
                         lore.add(color(line
                                 .replace("%item%", item.getType().name())
-                                .replace("%price%", String.valueOf(price))
+                                .replace("%price%", formattedPrice)
                                 .replace("%itemName%", itemName)));
                     }
                 } else if (plugin.getConfig().isString(path + ".lore")) {
                     lore.add(color(plugin.getConfig().getString(path + ".lore", "")
                             .replace("%item%", item.getType().name())
-                            .replace("%price%", String.valueOf(price))
+                            .replace("%price%", formattedPrice)
                             .replace("%itemName%", itemName)));
                 }
                 meta.setLore(lore);
@@ -358,20 +363,20 @@ public class Auction implements CommandExecutor, Listener {
         if (meta != null) {
             meta.setDisplayName(color(plugin.getConfig().getString(path + ".name", "")
                     .replace("%itemName%", itemName)
-                    .replace("%price%", String.valueOf(price))));
+                    .replace("%price%", formattedPrice)));
 
             List<String> lore = new ArrayList<>();
             if (plugin.getConfig().isList(path + ".lore")) {
                 for (String line : plugin.getConfig().getStringList(path + ".lore")) {
                     lore.add(color(line
                             .replace("%item%", item.getType().name())
-                            .replace("%price%", String.valueOf(price))
+                            .replace("%price%", formattedPrice)
                             .replace("%itemName%", itemName)));
                 }
             } else if (plugin.getConfig().isString(path + ".lore")) {
                 lore.add(color(plugin.getConfig().getString(path + ".lore", "")
                         .replace("%item%", item.getType().name())
-                        .replace("%price%", String.valueOf(price))
+                        .replace("%price%", formattedPrice)
                         .replace("%itemName%", itemName)));
             }
 
@@ -529,7 +534,7 @@ public class Auction implements CommandExecutor, Listener {
         Player player = (Player) event.getWhoClicked();
 
         String mainTitlePrefix = color(plugin.getConfig().getString("ah.title", "&8Auction").split("%page%")[0]);
-        String ownTitlePrefix = color(plugin.getConfig().getString("ah.yourItems.title", "&8Your Items").split("%page%")[0]);
+        String ownTitlePrefix = color(plugin.getConfig().getString("ah.yourItems.title", "&8Auction -> Your Items").split("%page%")[0]);
         String confirmTitle = color(plugin.getConfig().getString("ah.confirm.title", "&8Confirm Listing"));
         String viewTitle = event.getView().getTitle();
 
