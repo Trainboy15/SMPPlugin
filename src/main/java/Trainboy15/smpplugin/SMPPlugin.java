@@ -28,6 +28,11 @@ public class SMPPlugin extends JavaPlugin {
             getCommand("shop").setExecutor(shopHandler);
         }
         getServer().getPluginManager().registerEvents(shopHandler, this);
+        
+        Sell sellCommand = new Sell(this);
+        getCommand("sell").setExecutor(sellCommand);
+        getCommand("sellgui").setExecutor(sellCommand);
+        getServer().getPluginManager().registerEvents(sellCommand, this);
 
         // Register /ah command and GUI click listener
         auctionHandler = new Auction(this);

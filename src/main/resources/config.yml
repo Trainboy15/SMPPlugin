@@ -214,6 +214,9 @@ shop:
           amount: 1
           buy: 250
           sell: 20
+sellgui:
+  size: 27
+  title: '&bSell'
 ah:
   title: "&8Auction (Page %page%/%maxpage%)"
   maxListings: 18
