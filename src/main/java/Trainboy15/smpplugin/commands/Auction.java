@@ -66,6 +66,15 @@ public class Auction implements CommandExecutor, Listener {
                 return true;
             }
 
+            int maxListings = plugin.getConfig().getInt("ah.maxListings", 18);
+            long currentListings = listings.stream()
+                    .filter(item -> item.getSellerUUID().equals(player.getUniqueId()))
+                    .count();
+            if (currentListings >= maxListings) {
+                player.sendMessage(ChatColor.RED + "You have reached your maximum listing limit (" + maxListings + ").");
+                return true;
+            }
+
             ItemStack itemInHand = player.getInventory().getItemInMainHand();
             if (itemInHand == null || itemInHand.getType() == Material.AIR) {
                 player.sendMessage(ChatColor.RED + "You must be holding an item to sell.");
@@ -111,6 +120,11 @@ public class Auction implements CommandExecutor, Listener {
     }
 
     private void openInventory(Player player, AuctionSession session) {
+        if (session.viewingOwnItems) {
+            openYourItemsInventory(player, session);
+            return;
+        }
+
         int size = plugin.getConfig().getInt("ah.size", 54);
         size = Math.max(18, Math.min(54, size - (size % 9)));
         int itemSlots = size - 9;
@@ -118,14 +132,7 @@ public class Auction implements CommandExecutor, Listener {
         // Start with all listings
         List<AuctionItem> filtered = new ArrayList<>(listings);
 
-        // 1. Filter by "Your Items" if toggled on
-        if (session.viewingOwnItems) {
-            filtered = filtered.stream()
-                    .filter(item -> item.getSellerUUID().equals(player.getUniqueId()))
-                    .collect(Collectors.toList());
-        }
-
-        // 2. Filter by search query if present
+        // 1. Filter by search query if present
         if (session.searchQuery != null && !session.searchQuery.isEmpty()) {
             String queryLower = session.searchQuery.toLowerCase();
             filtered = filtered.stream()
@@ -133,7 +140,7 @@ public class Auction implements CommandExecutor, Listener {
                     .collect(Collectors.toList());
         }
 
-        // 3. Filter by category (Matches options in slot 47)
+        // 2. Filter by category (Matches options in slot 47)
         List<String> filterOptions = plugin.getConfig().getStringList("ah.items.47.options");
         if (!filterOptions.isEmpty() && session.filterIndex > 0 && session.filterIndex < filterOptions.size()) {
             String selectedCategory = filterOptions.get(session.filterIndex).toLowerCase();
@@ -142,7 +149,7 @@ public class Auction implements CommandExecutor, Listener {
                     .collect(Collectors.toList());
         }
 
-        // 4. Sort listings (Matches options in slot 48)
+        // 3. Sort listings (Matches options in slot 48)
         List<String> sortOptions = plugin.getConfig().getStringList("ah.items.48.options");
         if (!sortOptions.isEmpty() && session.sortIndex >= 0 && session.sortIndex < sortOptions.size()) {
             String selectedSort = sortOptions.get(session.sortIndex).toLowerCase();
@@ -193,6 +200,51 @@ public class Auction implements CommandExecutor, Listener {
                     }
                 } catch (NumberFormatException ignored) {
                     plugin.getLogger().warning("Invalid slot number in config: " + key);
+                }
+            }
+        }
+
+        player.openInventory(inventory);
+    }
+
+    private void openYourItemsInventory(Player player, AuctionSession session) {
+        int size = plugin.getConfig().getInt("ah.yourItems.size", 27);
+        size = Math.max(18, Math.min(54, size - (size % 9)));
+        int itemSlots = size - 9;
+
+        List<AuctionItem> ownListings = listings.stream()
+                .filter(item -> item.getSellerUUID().equals(player.getUniqueId()))
+                .collect(Collectors.toList());
+
+        int maxListings = plugin.getConfig().getInt("ah.max_listings", 10);
+        int maxPages = Math.max(1, (int) Math.ceil((double) ownListings.size() / itemSlots));
+        session.page = Math.max(1, Math.min(session.page, maxPages));
+
+        String rawTitle = plugin.getConfig().getString("ah.yourItems.title", "&8Your Items (%page%/%maxpage%)");
+        String title = color(rawTitle
+                .replace("%page%", String.valueOf(session.page))
+                .replace("%maxpage%", String.valueOf(maxPages)));
+
+        Inventory inventory = Bukkit.createInventory(null, size, title);
+
+        // Populate player's active listings
+        int startIndex = (session.page - 1) * itemSlots;
+        for (int i = 0; i < itemSlots && (startIndex + i) < ownListings.size(); i++) {
+            AuctionItem auctionItem = ownListings.get(startIndex + i);
+            inventory.setItem(i, createOwnDisplayItem(auctionItem));
+        }
+
+        // Populate menu items from ah.yourItems.items
+        ConfigurationSection itemsSection = plugin.getConfig().getConfigurationSection("ah.yourItems.items");
+        if (itemsSection != null) {
+            for (String key : itemsSection.getKeys(false)) {
+                try {
+                    int slot = Integer.parseInt(key);
+                    if (slot >= 0 && slot < size) {
+                        inventory.setItem(slot, createYourItemsMenuItem(slot, ownListings.size(), maxListings));
+                    }
+                } catch (NumberFormatException ignored) {
+                    plugin.getLogger().warning("Invalid slot number in yourItems config: " + key);
                 }
             }
         }
@@ -262,6 +314,21 @@ public class Auction implements CommandExecutor, Listener {
         return display;
     }
 
+    private ItemStack createOwnDisplayItem(AuctionItem auctionItem) {
+        ItemStack display = auctionItem.getItem().clone();
+        ItemMeta meta = display.getItemMeta();
+        if (meta != null) {
+            List<String> lore = meta.hasLore() ? new ArrayList<>(meta.getLore()) : new ArrayList<>();
+            lore.add("");
+            lore.add(color("&7Seller: &e" + auctionItem.getSellerName()));
+            lore.add(color("&7Price: &a$" + auctionItem.getPrice()));
+            lore.add(color("&cClick to cancel & reclaim!"));
+            meta.setLore(lore);
+            display.setItemMeta(meta);
+        }
+        return display;
+    }
+
     private ItemStack createMenuItem(int slot, int selectedIndex) {
         String path = "ah.items." + slot;
         String matName = plugin.getConfig().getString(path + ".material", "STONE");
@@ -298,13 +365,47 @@ public class Auction implements CommandExecutor, Listener {
         return display;
     }
 
+    private ItemStack createYourItemsMenuItem(int slot, int currentCount, int maxCount) {
+        String path = "ah.yourItems.items." + slot;
+        Material material = Material.matchMaterial(plugin.getConfig().getString(path + ".material", "BOOK"));
+        if (material == null) material = Material.BOOK;
+
+        ItemStack display = new ItemStack(material);
+        ItemMeta meta = display.getItemMeta();
+        if (meta != null) {
+            meta.setDisplayName(color(plugin.getConfig().getString(path + ".name", "")));
+
+            List<String> lore = new ArrayList<>();
+            if (plugin.getConfig().isList(path + ".lore")) {
+                for (String line : plugin.getConfig().getStringList(path + ".lore")) {
+                    lore.add(color(line
+                            .replace("%listings%", String.valueOf(currentCount))
+                            .replace("%max_listings%", String.valueOf(maxCount))));
+                }
+            } else if (plugin.getConfig().isString(path + ".lore")) {
+                lore.add(color(plugin.getConfig().getString(path + ".lore", "")
+                        .replace("%listings%", String.valueOf(currentCount))
+                        .replace("%max_listings%", String.valueOf(maxCount))));
+            }
+
+            meta.setLore(lore);
+            display.setItemMeta(meta);
+        }
+        return display;
+    }
+
     @EventHandler
     public void onInventoryClick(InventoryClickEvent event) {
         if (!(event.getWhoClicked() instanceof Player)) return;
         Player player = (Player) event.getWhoClicked();
 
-        String titlePrefix = color(plugin.getConfig().getString("ah.title", "&8Auction").split("%page%")[0]);
-        if (!event.getView().getTitle().startsWith(titlePrefix)) return;
+        String mainTitlePrefix = color(plugin.getConfig().getString("ah.title", "&8Auction").split("%page%")[0]);
+        String ownTitlePrefix = color(plugin.getConfig().getString("ah.yourItems.title", "&8Your Items").split("%page%")[0]);
+        String viewTitle = event.getView().getTitle();
+
+        boolean isMainGui = viewTitle.startsWith(mainTitlePrefix);
+        boolean isOwnGui = viewTitle.startsWith(ownTitlePrefix);
+        if (!isMainGui && !isOwnGui) return;
 
         event.setCancelled(true);
 
@@ -316,16 +417,52 @@ public class Auction implements CommandExecutor, Listener {
         if (clicked == null || clicked.getType() == Material.AIR) return;
 
         int slot = event.getSlot();
-        int inventorySize = event.getView().getTopInventory().getSize();
-        int itemSlots = inventorySize - 9;
+        int itemSlots = event.getView().getTopInventory().getSize() - 9;
 
-        // 1. Check if the player clicked the bottom menu bar
+        // Handle Your Items GUI clicks
+        if (isOwnGui) {
+            if (slot >= itemSlots) {
+                String action = plugin.getConfig().getString("ah.yourItems.items." + slot + ".action", "");
+                AuctionSession session = sessions.computeIfAbsent(player.getUniqueId(), k -> new AuctionSession());
+                switch (action.toLowerCase()) {
+                    case "back":
+                        session.viewingOwnItems = false;
+                        session.page = 1;
+                        openInventory(player, session);
+                        break;
+                    case "next":
+                        session.page++;
+                        openInventory(player, session);
+                        break;
+                    case "previous":
+                        session.page = Math.max(1, session.page - 1);
+                        openInventory(player, session);
+                        break;
+                }
+                return;
+            }
+
+            AuctionItem targetListing = findMatchingListing(clicked);
+            if (targetListing != null && targetListing.getSellerUUID().equals(player.getUniqueId())) {
+                if (player.getInventory().firstEmpty() == -1) {
+                    player.sendMessage(ChatColor.RED + "Your inventory is full!");
+                    return;
+                }
+                listings.remove(targetListing);
+                player.getInventory().addItem(targetListing.getItem());
+                player.sendMessage(ChatColor.YELLOW + "Removed your listing and returned the item.");
+                AuctionSession session = sessions.computeIfAbsent(player.getUniqueId(), k -> new AuctionSession());
+                openInventory(player, session);
+            }
+            return;
+        }
+
+        // Handle Main Auction House GUI clicks
         if (slot >= itemSlots) {
             handleMenuClick(player, slot, event.isRightClick());
             return;
         }
 
-        // 2. Otherwise, the player clicked an auction listing
         AuctionItem targetListing = findMatchingListing(clicked);
         if (targetListing == null) {
             player.sendMessage(ChatColor.RED + "This item is no longer available.");
@@ -380,7 +517,7 @@ public class Auction implements CommandExecutor, Listener {
                 break;
 
             case "own":
-                session.viewingOwnItems = !session.viewingOwnItems;
+                session.viewingOwnItems = true;
                 session.page = 1;
                 openInventory(player, session);
                 break;

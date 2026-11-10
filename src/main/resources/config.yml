@@ -216,9 +216,25 @@ shop:
           sell: 20
 ah:
   title: "&8Auction (Page %page%/%maxpage%)"
+  maxListings: 18
   size: 54
   OptionSelectedPrefix: "&b• &b"
   OptionUnselectedPrefix: "&f◦ &f"
+  yourItems:
+      title: "&8Your Items (%page%/%maxpage%)"
+      size: 27
+      items:
+        '18':
+          material: ARROW
+          name: "&4Back"
+          action: back
+          lore:
+            - '&fClick to return'
+        '22':
+          material: BOOK
+          name: "&bInfo"
+          lore:
+            - "&fListing limit: &b%listings%/%max_listings%"
   items:
     '45':
       material: ARROW
