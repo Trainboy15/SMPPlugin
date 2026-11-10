@@ -224,7 +224,7 @@ ah:
   OptionSelectedPrefix: "&b• &b"
   OptionUnselectedPrefix: "&f◦ &f"
   yourItems:
-      title: "&8Your Items (%page%/%maxpage%)"
+      title: "&8Auction -> Your Items"
       size: 27
       items:
         '18':
@@ -313,5 +313,81 @@ tpa:
       action: confirm
   incomingRequest:
     message: '&b%player% &fsend you a &f%type% &freqeust. &fType &b/tpaccept &for &b/tpadeny'
+
+orders:
+  title: "&8Orders (Page %page%/%maxpage%)"
+  maxListings: 18
+  size: 54
+  OptionSelectedPrefix: "&b• &b"
+  OptionUnselectedPrefix: "&f◦ &f"
+  yourOrders:
+      title: "&8Orders -> Your Orders"
+      size: 27
+      items:
+        '18':
+          material: RED_STAINED_GLASS_PANE
+          name: "&4Back"
+          action: back
+          lore:
+            - '&fClick to return'
+        '22':
+          material: BOOK
+          name: "&bInfo"
+          lore:
+            - "&fListing limit: &b%listings%/%max_listings%"
+  items:
+    '45':
+      material: ARROW
+      name: "&bPrevious Page"
+      action: previous
+      options:
+        - "&fClick to view the previous page"
+    '47':
+      material: CAULDRON
+      name: "&bFilter"
+      action: filter
+      options:
+        - "All Items"
+        - "Blocks"
+        - "Tools"
+        - "Food"
+        - "Combat"
+        - "Potions"
+        - "Books"
+        - "Ingredients"
+        - "Utilities"
+    '48':
+      material: HOPPER
+      name: "&bSort"
+      action: sort
+      options:
+        - "Most Money Per Item"
+        - "Most Deliverd"
+        - "Most Paid"
+        - "Recently Listed"
+    '49':
+      material: ANVIL
+      name: "&bAuction"
+      action: refresh
+      options:
+        - "&fClick to refresh"
+    '50':
+      material: OAK_SIGN
+      name: "&bSearch"
+      action: search
+      options:
+        - "&fClick to search"
+    '51':
+      material: CHEST
+      name: "&bYour Items"
+      action: own
+      options:
+        - "&fClick to view the your orders"
+    '53':
+      material: ARROW
+      name: "&bNext Page"
+      action: next
+      options:
+        - "&fClick to view the next page"
 
   

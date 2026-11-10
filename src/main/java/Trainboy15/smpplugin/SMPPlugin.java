@@ -4,6 +4,7 @@ import net.milkbowl.vault.economy.Economy;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 import trainboy15.smpplugin.commands.Auction;
+import trainboy15.smpplugin.commands.Orders;
 import trainboy15.smpplugin.commands.Sell;
 import trainboy15.smpplugin.commands.Shop;
 
@@ -11,6 +12,7 @@ public class SMPPlugin extends JavaPlugin {
 
     private Economy econ = null;
     private Auction auctionHandler;
+    private Orders ordersHandler;
 
     @Override
     public void onEnable() {
@@ -46,6 +48,13 @@ public class SMPPlugin extends JavaPlugin {
             getCommand("ah").setExecutor(auctionHandler);
         }
         getServer().getPluginManager().registerEvents(auctionHandler, this);
+
+        // Register /orders command and GUI click listener
+        ordersHandler = new Orders(this);
+        if (getCommand("orders") != null) {
+            getCommand("orders").setExecutor(ordersHandler);
+        }
+        getServer().getPluginManager().registerEvents(ordersHandler, this);
 
         getLogger().info("SMP Plugin v" + getDescription().getVersion() + " enabled.");
     }
