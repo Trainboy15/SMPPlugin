@@ -68,6 +68,9 @@ permissions:
   smp.player:
     description: Basic player commands
     default: true
+  smp.premium:
+    description: QOL
+    default: false
   smp.admin:
     description: Access to SMP admin commands
     default: op

@@ -1,3 +1,6 @@
+ranks:
+  names:
+  - 'Hyper'
 shop:
   title: "&8Shop"
   size: 27
@@ -220,24 +223,49 @@ sellgui:
 ah:
   title: "&8Auction (Page %page%/%maxpage%)"
   maxListings: 18
+  premiumMaxListings: 45
+  # 1 Billion
+  maxPrice: 1000000000
   size: 54
   OptionSelectedPrefix: "&b• &b"
   OptionUnselectedPrefix: "&f◦ &f"
   yourItems:
-      title: "&8Auction -> Your Items"
-      size: 27
-      items:
-        '18':
-          material: RED_STAINED_GLASS_PANE
-          name: "&4Back"
-          action: back
-          lore:
-            - '&fClick to return'
-        '22':
-          material: BOOK
-          name: "&bInfo"
-          lore:
-            - "&fListing limit: &b%listings%/%max_listings%"
+    title: "&8Auction -> Your Items"
+    size: 27
+    items:
+      '18':
+        material: RED_STAINED_GLASS_PANE
+        name: "&4Back"
+        action: back
+        lore:
+          - '&fClick to return'
+      '22':
+        material: BOOK
+        name: "&bInfo"
+        lore:
+          - "&fListing limit: &b%listings%/%max_listings%"
+  confirm:
+    title: '&8Confirm Listing'
+    size: 27
+    items:
+      '11':
+        material: RED_STAINED_GLASS_PANE
+        name: '&cCancel'
+        action: cancel
+        lore:
+          - '&fClick to cancel' 
+      '13':
+        material: '%item%'
+        name: '%itemName%'
+        lore:
+          - '&fYou are about to sell'
+          - '&fthis item for %price%'  
+      '15':
+        material: GREEN_STAINED_GLASS_PANE
+        name: '&aConfirm'
+        action: confirm
+        lore:
+          - '&fClick to sell'
   items:
     '45':
       material: ARROW
@@ -389,5 +417,5 @@ orders:
       action: next
       options:
         - "&fClick to view the next page"
-
-  
+settings:
+  title: '&8Settings'

@@ -15,6 +15,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
@@ -66,12 +67,15 @@ public class Auction implements CommandExecutor, Listener {
                 return true;
             }
 
-            int maxListings = plugin.getConfig().getInt("ah.maxListings", 18);
+            int maxListings = player.hasPermission("smp.premium")
+                    ? plugin.getConfig().getInt("ah.premiumMaxListings", 45)
+                    : plugin.getConfig().getInt("ah.maxListings", 18);
+
             long currentListings = listings.stream()
                     .filter(item -> item.getSellerUUID().equals(player.getUniqueId()))
                     .count();
             if (currentListings >= maxListings) {
-                player.sendMessage(ChatColor.RED + "You have reached your maximum listing limit (" + maxListings + ").");
+                player.sendMessage(ChatColor.RED + "You can only have " + maxListings + " auctions listed at once. The premium rank(s) limit is " + plugin.getConfig().getInt("ah.premiumMaxListings", 45) + " slots.");
                 return true;
             }
 
@@ -84,8 +88,13 @@ public class Auction implements CommandExecutor, Listener {
             double price;
             try {
                 price = Double.parseDouble(args[1]);
-                if (price <= 0) {
-                    player.sendMessage(ChatColor.RED + "Price must be greater than 0.");
+                if (price < 1) {
+                    player.sendMessage(ChatColor.RED + "The minimum price is $1.");
+                    return true;
+                }
+                int maxPrice = plugin.getConfig().getInt("ah.maxPrice", 1000000000);
+                if (price > maxPrice) {
+                    player.sendMessage(ChatColor.RED + "The maximum price is $" + maxPrice + ".");
                     return true;
                 }
             } catch (NumberFormatException e) {
@@ -93,10 +102,8 @@ public class Auction implements CommandExecutor, Listener {
                 return true;
             }
 
-            // Clone the item before removing it from the player's hand
+            // Store pending listing and open confirmation GUI
             listItem(player, itemInHand.clone(), price);
-            player.getInventory().setItemInMainHand(null);
-            player.sendMessage(ChatColor.GREEN + "Listed your item for $" + price + "!");
             return true;
         }
 
@@ -109,6 +116,26 @@ public class Auction implements CommandExecutor, Listener {
     }
 
     private void listItem(Player seller, ItemStack item, double price) {
+        AuctionSession session = sessions.computeIfAbsent(seller.getUniqueId(), k -> new AuctionSession());
+        session.pendingItem = item;
+        session.pendingPrice = price;
+        openConfirmGui(seller, item, price);
+    }
+
+    private void finalizeListing(Player seller, ItemStack item, double price) {
+        ItemStack currentHand = seller.getInventory().getItemInMainHand();
+        if (currentHand == null || !currentHand.isSimilar(item) || currentHand.getAmount() != item.getAmount()) {
+            seller.sendMessage(ChatColor.RED + "You must keep the item in your main hand to confirm the listing!");
+            return;
+        }
+
+        seller.getInventory().setItemInMainHand(null);
+
+        String itemName = (item.hasItemMeta() && item.getItemMeta().hasDisplayName())
+                ? item.getItemMeta().getDisplayName()
+                : item.getType().name().replace("_", " ").toLowerCase();
+
+        seller.sendMessage(ChatColor.GRAY + "You listed " + itemName + " for $" + price);
         listings.add(new AuctionItem(seller.getUniqueId(), seller.getName(), item, price, System.currentTimeMillis()));
     }
 
@@ -216,7 +243,10 @@ public class Auction implements CommandExecutor, Listener {
                 .filter(item -> item.getSellerUUID().equals(player.getUniqueId()))
                 .collect(Collectors.toList());
 
-        int maxListings = plugin.getConfig().getInt("ah.max_listings", 10);
+        int maxListings = player.hasPermission("smp.premium")
+                ? plugin.getConfig().getInt("ah.premiumMaxListings", 45)
+                : plugin.getConfig().getInt("ah.maxListings", 18);
+
         int maxPages = Math.max(1, (int) Math.ceil((double) ownListings.size() / itemSlots));
         session.page = Math.max(1, Math.min(session.page, maxPages));
 
@@ -250,6 +280,105 @@ public class Auction implements CommandExecutor, Listener {
         }
 
         player.openInventory(inventory);
+    }
+
+    private void openConfirmGui(Player player, ItemStack item, double price) {
+        int size = plugin.getConfig().getInt("ah.confirm.size", 27);
+        size = Math.max(9, Math.min(54, size - (size % 9)));
+
+        String rawTitle = plugin.getConfig().getString("ah.confirm.title", "&8Confirm Listing");
+        String title = color(rawTitle);
+
+        Inventory inventory = Bukkit.createInventory(null, size, title);
+
+        // Populate menu items from ah.confirm.items
+        ConfigurationSection itemsSection = plugin.getConfig().getConfigurationSection("ah.confirm.items");
+        if (itemsSection != null) {
+            for (String key : itemsSection.getKeys(false)) {
+                try {
+                    int slot = Integer.parseInt(key);
+                    if (slot >= 0 && slot < size) {
+                        inventory.setItem(slot, createConfirmMenuItem(slot, item, price));
+                    }
+                } catch (NumberFormatException ignored) {
+                    plugin.getLogger().warning("Invalid slot number in confirm config: " + key);
+                }
+            }
+        }
+
+        player.openInventory(inventory);
+    }
+
+    private ItemStack createConfirmMenuItem(int slot, ItemStack item, double price) {
+        String path = "ah.confirm.items." + slot;
+        String action = plugin.getConfig().getString(path + ".action", "");
+        String matConfig = plugin.getConfig().getString(path + ".material", "STONE");
+
+        String itemName = (item.hasItemMeta() && item.getItemMeta().hasDisplayName())
+                ? item.getItemMeta().getDisplayName()
+                : item.getType().name().replace("_", " ").toLowerCase();
+
+        // Supports material: '%item%', material: 'ITEM', or action: 'display'
+        if (action.equalsIgnoreCase("display")
+                || matConfig.equalsIgnoreCase("%item%")
+                || matConfig.equalsIgnoreCase("ITEM")) {
+            ItemStack preview = item.clone();
+            ItemMeta meta = preview.getItemMeta();
+            if (meta != null) {
+                if (plugin.getConfig().contains(path + ".name")) {
+                    meta.setDisplayName(color(plugin.getConfig().getString(path + ".name", "")
+                            .replace("%itemName%", itemName)
+                            .replace("%price%", String.valueOf(price))));
+                }
+                List<String> lore = meta.hasLore() ? new ArrayList<>(meta.getLore()) : new ArrayList<>();
+                if (plugin.getConfig().isList(path + ".lore")) {
+                    for (String line : plugin.getConfig().getStringList(path + ".lore")) {
+                        lore.add(color(line
+                                .replace("%item%", item.getType().name())
+                                .replace("%price%", String.valueOf(price))
+                                .replace("%itemName%", itemName)));
+                    }
+                } else if (plugin.getConfig().isString(path + ".lore")) {
+                    lore.add(color(plugin.getConfig().getString(path + ".lore", "")
+                            .replace("%item%", item.getType().name())
+                            .replace("%price%", String.valueOf(price))
+                            .replace("%itemName%", itemName)));
+                }
+                meta.setLore(lore);
+                preview.setItemMeta(meta);
+            }
+            return preview;
+        }
+
+        Material material = Material.matchMaterial(matConfig);
+        if (material == null) material = Material.STONE;
+
+        ItemStack display = new ItemStack(material);
+        ItemMeta meta = display.getItemMeta();
+        if (meta != null) {
+            meta.setDisplayName(color(plugin.getConfig().getString(path + ".name", "")
+                    .replace("%itemName%", itemName)
+                    .replace("%price%", String.valueOf(price))));
+
+            List<String> lore = new ArrayList<>();
+            if (plugin.getConfig().isList(path + ".lore")) {
+                for (String line : plugin.getConfig().getStringList(path + ".lore")) {
+                    lore.add(color(line
+                            .replace("%item%", item.getType().name())
+                            .replace("%price%", String.valueOf(price))
+                            .replace("%itemName%", itemName)));
+                }
+            } else if (plugin.getConfig().isString(path + ".lore")) {
+                lore.add(color(plugin.getConfig().getString(path + ".lore", "")
+                        .replace("%item%", item.getType().name())
+                        .replace("%price%", String.valueOf(price))
+                        .replace("%itemName%", itemName)));
+            }
+
+            meta.setLore(lore);
+            display.setItemMeta(meta);
+        }
+        return display;
     }
 
     private boolean matchesCategory(ItemStack item, String category) {
@@ -401,11 +530,14 @@ public class Auction implements CommandExecutor, Listener {
 
         String mainTitlePrefix = color(plugin.getConfig().getString("ah.title", "&8Auction").split("%page%")[0]);
         String ownTitlePrefix = color(plugin.getConfig().getString("ah.yourItems.title", "&8Your Items").split("%page%")[0]);
+        String confirmTitle = color(plugin.getConfig().getString("ah.confirm.title", "&8Confirm Listing"));
         String viewTitle = event.getView().getTitle();
 
         boolean isMainGui = viewTitle.startsWith(mainTitlePrefix);
         boolean isOwnGui = viewTitle.startsWith(ownTitlePrefix);
-        if (!isMainGui && !isOwnGui) return;
+        boolean isConfirmGui = viewTitle.equals(confirmTitle);
+
+        if (!isMainGui && !isOwnGui && !isConfirmGui) return;
 
         event.setCancelled(true);
 
@@ -417,6 +549,34 @@ public class Auction implements CommandExecutor, Listener {
         if (clicked == null || clicked.getType() == Material.AIR) return;
 
         int slot = event.getSlot();
+
+        // Handle Confirm Listing GUI clicks
+        if (isConfirmGui) {
+            String action = plugin.getConfig().getString("ah.confirm.items." + slot + ".action", "");
+            AuctionSession session = sessions.get(player.getUniqueId());
+
+            if (action.equalsIgnoreCase("confirm")) {
+                if (session != null && session.pendingItem != null) {
+                    ItemStack itemToSell = session.pendingItem;
+                    double priceToSell = session.pendingPrice;
+                    session.pendingItem = null;
+                    session.pendingPrice = 0;
+                    player.closeInventory();
+                    finalizeListing(player, itemToSell, priceToSell);
+                } else {
+                    player.closeInventory();
+                }
+            } else if (action.equalsIgnoreCase("cancel")) {
+                if (session != null) {
+                    session.pendingItem = null;
+                    session.pendingPrice = 0;
+                }
+                player.closeInventory();
+                player.sendMessage(ChatColor.RED + "Listing cancelled.");
+            }
+            return;
+        }
+
         int itemSlots = event.getView().getTopInventory().getSize() - 9;
 
         // Handle Your Items GUI clicks
@@ -471,6 +631,21 @@ public class Auction implements CommandExecutor, Listener {
         }
 
         handlePurchase(player, targetListing);
+    }
+
+    @EventHandler
+    public void onInventoryClose(InventoryCloseEvent event) {
+        if (!(event.getPlayer() instanceof Player)) return;
+        Player player = (Player) event.getPlayer();
+        String confirmTitle = color(plugin.getConfig().getString("ah.confirm.title", "&8Confirm Listing"));
+
+        if (event.getView().getTitle().equals(confirmTitle)) {
+            AuctionSession session = sessions.get(player.getUniqueId());
+            if (session != null) {
+                session.pendingItem = null;
+                session.pendingPrice = 0;
+            }
+        }
     }
 
     private void handleMenuClick(Player player, int slot, boolean isRightClick) {
@@ -620,6 +795,8 @@ public class Auction implements CommandExecutor, Listener {
         int sortIndex = 0;
         String searchQuery = "";
         boolean viewingOwnItems = false;
+        ItemStack pendingItem = null;
+        double pendingPrice = 0;
     }
 
     private static class AuctionItem {
