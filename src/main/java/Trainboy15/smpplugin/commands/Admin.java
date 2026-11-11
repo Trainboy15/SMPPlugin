@@ -15,6 +15,9 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryCloseEvent;
+import org.bukkit.event.inventory.InventoryType;
+import org.bukkit.inventory.AnvilInventory;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.Inventory;
@@ -81,6 +84,7 @@ public class Admin implements CommandExecutor, Listener {
 
         int size = normalizeSize(plugin.getConfig().getInt("admin.size", 27), 9);
         String title = color(plugin.getConfig().getString("admin.title", "&8Admin Panel"));
+        private static final String TITLE_BAN_REASON = ChatColor.DARK_GRAY + "Admin -> Ban Reason";
         Inventory inv = Bukkit.createInventory(null, size, title);
 
         Map<String, String> placeholders = new HashMap<>();
@@ -296,6 +300,12 @@ public class Admin implements CommandExecutor, Listener {
     }
 
     // ==================== EVENT HANDLERS ====================
+    @EventHandler
+public void onInventoryClose(InventoryCloseEvent event) {
+    if (event.getView().getTitle().equals(TITLE_BAN_REASON)) {
+        event.getInventory().clear();
+    }
+}
 
     @EventHandler
     public void onInventoryClick(InventoryClickEvent event) {
@@ -324,6 +334,40 @@ public class Admin implements CommandExecutor, Listener {
         if (clicked == null || clicked.getType() == Material.AIR) return;
 
         int slot = event.getSlot();
+        if (title.equals(TITLE_BAN_REASON)) {
+    event.setCancelled(true);
+    if (event.getRawSlot() != 2) return; // Slot 2 is the Anvil output slot
+
+    ItemStack result = event.getCurrentItem();
+    if (result == null || result.getType() == Material.AIR) return;
+
+    String reason = "Banned by an administrator.";
+    if (result.hasItemMeta() && result.getItemMeta().hasDisplayName()) {
+        String typed = ChatColor.stripColor(result.getItemMeta().getDisplayName()).trim();
+        if (!typed.isEmpty()) {
+            reason = typed;
+        }
+    }
+
+    // Clear items before closing so nothing drops on the ground
+    event.getView().getTopInventory().clear();
+    admin.closeInventory();
+
+    AdminSession session = sessions.get(admin.getUniqueId());
+    if (session != null && session.targetPlayer != null) {
+        OfflinePlayer target = Bukkit.getOfflinePlayer(session.targetPlayer);
+        String targetName = target.getName() != null ? target.getName() : target.getUniqueId().toString();
+
+        target.ban(reason, (java.time.Instant) null, admin.getName());
+        if (target.isOnline() && target.getPlayer() != null) {
+            target.getPlayer().kickPlayer(color("&cYou have been banned.\n&7Reason: &f" + reason));
+        }
+        admin.sendMessage(color("&cBanned " + targetName + " &7for: &f" + reason));
+        openPlayerDetailGui(admin, target);
+    }
+    return;
+}
+
 
         // 1. Main Menu
         if (session.currentMenu == MenuType.MAIN) {
@@ -398,12 +442,13 @@ public class Admin implements CommandExecutor, Listener {
                 case "toggle_ban":
                     BanList banList = Bukkit.getBanList(BanList.Type.NAME);
                     if (target.isBanned()) {
-                        Bukkit.getBanList(io.papermc.paper.ban.BanListType.PROFILE).pardon(target.getPlayerProfile());
+                        Bukkit.getBanList(org.bukkit.ban.BanListType.PROFILE).pardon(target.getPlayerProfile());
                         admin.sendMessage(color("&aUnbanned " + targetName + "."));
+                        openPlayerDetailGui(admin, target);
                     } else {
-                        target.ban("Banned by an administrator.", (java.time.Instant) null, admin.getName(), true);
-                        admin.sendMessage(color("&cBanned " + targetName + "."));
+                        openBanReasonAnvil(admin, target);
                     }
+
 
                     openPlayerDetailGui(admin, target);
                     break;
@@ -517,6 +562,27 @@ public class Admin implements CommandExecutor, Listener {
             }
         }
     }
+    public void openBanReasonAnvil(Player admin, OfflinePlayer target) {
+        AdminSession session = sessions.computeIfAbsent(admin.getUniqueId(), k -> new AdminSession());
+        session.targetPlayer = target.getUniqueId();
+
+        Inventory inv = Bukkit.createInventory(admin, InventoryType.ANVIL, TITLE_BAN_REASON);
+
+        ItemStack paper = new ItemStack(Material.PAPER);
+        ItemMeta meta = paper.getItemMeta();
+        if (meta != null) {
+            meta.setDisplayName("Rule Violation");
+            meta.setLore(Arrays.asList(
+                    color("&7Type the ban reason above,"),
+                    color("&7then click the output item to confirm.")
+            ));
+            paper.setItemMeta(meta);
+        }
+
+        inv.setItem(0, paper);
+        admin.openInventory(inv);   
+    }
+
 
     @EventHandler
     public void onPlayerChat(AsyncPlayerChatEvent event) {
