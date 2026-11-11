@@ -65,6 +65,13 @@ public class SMPPlugin extends JavaPlugin {
         }
         getServer().getPluginManager().registerEvents(ordersHandler, this);
 
+        Reload reloadHandler = new Reload(this);
+        if (getCommand("smp") != null) {
+            getCommand("smp").setExecutor(reloadHandler);
+            getCommand("smp").setTabCompleter(reloadHandler);
+        }
+
+
         getLogger().info("SMP Plugin v" + getDescription().getVersion() + " enabled.");
     }
 
