@@ -44,4 +44,8 @@ public class Reload implements CommandExecutor, TabCompleter {
         }
         return Collections.emptyList();
     }
+    private String color(String text) {
+        return ChatColor.translateAlternateColorCodes('&', text);
+    }
+
 }

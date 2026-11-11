@@ -401,7 +401,7 @@ public class Admin implements CommandExecutor, Listener {
                         banList.pardon(targetName);
                         admin.sendMessage(color("&aUnbanned " + targetName + "."));
                     } else {
-                        banList.addBan(targetName, "Banned by an administrator.", null, admin.getName());
+                        banList.addBan(targetName, "Banned by an administrator.", (java.time.Instant) null, admin.getName());
                         if (target.isOnline() && target.getPlayer() != null) {
                             target.getPlayer().kickPlayer(color("&cYou have been banned by an administrator."));
                         }
