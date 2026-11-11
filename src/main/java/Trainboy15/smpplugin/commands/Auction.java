@@ -78,7 +78,7 @@ public class Auction implements CommandExecutor, Listener {
                     .filter(item -> item.getSellerUUID().equals(player.getUniqueId()))
                     .count();
             if (currentListings >= maxListings) {
-                player.sendMessage(ChatColor.RED + "You can only have " + maxListings + " auctions listed at once. The premium rank(s) limit is " + plugin.getConfig().getInt("ah.premiumMaxListings", 45) + " slots.");
+                player.sendMessage(ChatColor.RED + "You can only have " + maxListings + " auctions listed at once. Hyper&b+&c gets " + plugin.getConfig().getInt("ah.premiumMaxListings", 45) + " slots.");
                 return true;
             }
 
