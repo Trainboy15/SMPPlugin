@@ -1,6 +1,7 @@
 package trainboy15.smpplugin.commands;
 
 import trainboy15.smpplugin.SMPPlugin;
+import trainboy15.smpplugin.database.DatabaseManager;
 
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -9,56 +10,53 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.ConfigurationSection;
-import org.bukkit.configuration.file.FileConfiguration;
-import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
-import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class Settings implements CommandExecutor, Listener {
 
     private final SMPPlugin plugin;
-    private final File playerDataFile;
-    private FileConfiguration playerData;
+    private final DatabaseManager database;
+    private final Map<UUID, Map<String, Boolean>> settingsCache = new ConcurrentHashMap<>();
 
-    public Settings(SMPPlugin plugin) {
+    public Settings(SMPPlugin plugin, DatabaseManager database) {
         this.plugin = plugin;
-        this.playerDataFile = new File(plugin.getDataFolder(), "playerdata.yml");
-        loadPlayerData();
+        this.database = database;
+
+        // Load settings for any players already online (e.g., during /reload)
+        for (Player online : Bukkit.getOnlinePlayers()) {
+            loadPlayerSettingsAsync(online.getUniqueId());
+        }
     }
 
-    private void loadPlayerData() {
-        if (!playerDataFile.exists()) {
-            try {
-                if (plugin.getDataFolder() != null && !plugin.getDataFolder().exists()) {
-                    plugin.getDataFolder().mkdirs();
-                }
-                playerDataFile.createNewFile();
-            } catch (IOException e) {
-                plugin.getLogger().severe("Could not create playerdata.yml!");
-                e.printStackTrace();
-            }
-        }
-        playerData = YamlConfiguration.loadConfiguration(playerDataFile);
+    private void loadPlayerSettingsAsync(UUID uuid) {
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+            Map<String, Boolean> loaded = database.loadPlayerSettings(uuid);
+            settingsCache.put(uuid, new ConcurrentHashMap<>(loaded));
+        });
     }
 
-    private void savePlayerData() {
-        try {
-            playerData.save(playerDataFile);
-        } catch (IOException e) {
-            plugin.getLogger().severe("Could not save playerdata.yml!");
-            e.printStackTrace();
-        }
+    @EventHandler
+    public void onPlayerJoin(PlayerJoinEvent event) {
+        loadPlayerSettingsAsync(event.getPlayer().getUniqueId());
+    }
+
+    @EventHandler
+    public void onPlayerQuit(PlayerQuitEvent event) {
+        settingsCache.remove(event.getPlayer().getUniqueId());
     }
 
     @Override
@@ -171,7 +169,9 @@ public class Settings implements CommandExecutor, Listener {
     public boolean getSetting(UUID uuid, String settingKey) {
         if (settingKey == null || settingKey.isEmpty()) return true;
         String normalizedKey = settingKey.toLowerCase().replace("toggle_", "");
-        return playerData.getBoolean("players." + uuid.toString() + "." + normalizedKey, true);
+        Map<String, Boolean> playerSettings = settingsCache.get(uuid);
+        if (playerSettings == null) return true;
+        return playerSettings.getOrDefault(normalizedKey, true);
     }
 
     public void setSetting(UUID uuid, String settingKey, boolean value) {
@@ -185,10 +185,9 @@ public class Settings implements CommandExecutor, Listener {
             return;
         }
 
-        playerData.set("players." + uuid.toString() + "." + normalizedKey, value);
-        savePlayerData();
+        settingsCache.computeIfAbsent(uuid, k -> new ConcurrentHashMap<>()).put(normalizedKey, value);
+        database.savePlayerSettingAsync(uuid, normalizedKey, value);
     }
-
 
     public boolean hasAhNotifications(UUID uuid) {
         return getSetting(uuid, "ah_notifications");

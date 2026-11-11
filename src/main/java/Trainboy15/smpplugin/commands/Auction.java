@@ -1,6 +1,7 @@
 package trainboy15.smpplugin.commands;
 
 import trainboy15.smpplugin.SMPPlugin;
+import trainboy15.smpplugin.database.DatabaseManager;
 
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Bukkit;
@@ -38,24 +39,22 @@ public class Auction implements CommandExecutor, Listener {
 
     private final SMPPlugin plugin;
     private final Settings settings;
-    private final AuctionDatabase database;
+    private final DatabaseManager database;
     private final NamespacedKey listingKey;
 
     private final List<AuctionItem> listings = new ArrayList<>();
     private final Map<UUID, AuctionSession> sessions = new HashMap<>();
     private final Set<UUID> awaitingSearchInput = ConcurrentHashMap.newKeySet();
 
-    public Auction(SMPPlugin plugin, Settings settings) {
+    public Auction(SMPPlugin plugin, Settings settings, DatabaseManager database) {
         this.plugin = plugin;
         this.settings = settings;
+        this.database = database;
         this.listingKey = new NamespacedKey(plugin, "auction_listing_id");
-        this.database = new AuctionDatabase(plugin);
-        this.listings.addAll(database.loadAll());
-    }
 
-    public void closeDatabase() {
-        if (database != null) {
-            database.close();
+        // Load active listings from shared SQLite database
+        if (this.database != null) {
+            this.listings.addAll(this.database.loadAllAuctions());
         }
     }
 
@@ -120,7 +119,6 @@ public class Auction implements CommandExecutor, Listener {
                 return true;
             }
 
-            // Clone the item before listing or opening the confirmation GUI
             listItem(player, itemInHand.clone(), price);
             return true;
         }
@@ -162,7 +160,9 @@ public class Auction implements CommandExecutor, Listener {
 
         AuctionItem newItem = new AuctionItem(seller.getUniqueId(), seller.getName(), item, price, System.currentTimeMillis());
         listings.add(newItem);
-        database.insertAsync(newItem);
+        if (database != null) {
+            database.insertAuctionAsync(newItem);
+        }
     }
 
     private void openInventory(Player player, int page, String searchQuery) {
@@ -182,7 +182,6 @@ public class Auction implements CommandExecutor, Listener {
         size = Math.max(18, Math.min(54, size - (size % 9)));
         int itemSlots = size - 9;
 
-        // Start with all listings
         List<AuctionItem> filtered = new ArrayList<>(listings);
 
         // 1. Filter by search query if present
@@ -213,7 +212,6 @@ public class Auction implements CommandExecutor, Listener {
             } else if (selectedSort.contains("cheapest")) {
                 filtered.sort(Comparator.comparingDouble(AuctionItem::getPrice));
             } else {
-                // Default: Recently Listed
                 filtered.sort(Comparator.comparingLong(AuctionItem::getTimestamp).reversed());
             }
         }
@@ -228,14 +226,12 @@ public class Auction implements CommandExecutor, Listener {
 
         Inventory inventory = Bukkit.createInventory(null, size, title);
 
-        // Populate auction listings
         int startIndex = (session.page - 1) * itemSlots;
         for (int i = 0; i < itemSlots && (startIndex + i) < filtered.size(); i++) {
             AuctionItem auctionItem = filtered.get(startIndex + i);
             inventory.setItem(i, createDisplayItem(auctionItem));
         }
 
-        // Populate menu items dynamically from config keys
         ConfigurationSection itemsSection = plugin.getConfig().getConfigurationSection("ah.items");
         if (itemsSection != null) {
             for (String key : itemsSection.getKeys(false)) {
@@ -283,14 +279,12 @@ public class Auction implements CommandExecutor, Listener {
 
         Inventory inventory = Bukkit.createInventory(null, size, title);
 
-        // Populate player's active listings
         int startIndex = (session.page - 1) * itemSlots;
         for (int i = 0; i < itemSlots && (startIndex + i) < ownListings.size(); i++) {
             AuctionItem auctionItem = ownListings.get(startIndex + i);
             inventory.setItem(i, createOwnDisplayItem(auctionItem));
         }
 
-        // Populate menu items from ah.yourItems.items
         ConfigurationSection itemsSection = plugin.getConfig().getConfigurationSection("ah.yourItems.items");
         if (itemsSection != null) {
             for (String key : itemsSection.getKeys(false)) {
@@ -317,7 +311,6 @@ public class Auction implements CommandExecutor, Listener {
 
         Inventory inventory = Bukkit.createInventory(null, size, title);
 
-        // Populate menu items from ah.confirm.items
         ConfigurationSection itemsSection = plugin.getConfig().getConfigurationSection("ah.confirm.items");
         if (itemsSection != null) {
             for (String key : itemsSection.getKeys(false)) {
@@ -346,7 +339,6 @@ public class Auction implements CommandExecutor, Listener {
 
         String formattedPrice = "$" + price;
 
-        // Supports material: '%item%' or action: 'display'
         if (matConfig.equalsIgnoreCase("%item%") || matConfig.equalsIgnoreCase("ITEM") || action.equalsIgnoreCase("display")) {
             ItemStack preview = item.clone();
             ItemMeta meta = preview.getItemMeta();
@@ -561,7 +553,7 @@ public class Auction implements CommandExecutor, Listener {
         String confirmTitle = color(plugin.getConfig().getString("ah.confirm.title", "&8Confirm Listing"));
         String viewTitle = event.getView().getTitle();
 
-        boolean isMainGui = viewTitle.startsWith(mainTitlePrefix);
+        boolean isMainGui = viewTitle.startsWith(mainTitlePrefix) && !viewTitle.startsWith(ownTitlePrefix);
         boolean isOwnGui = viewTitle.startsWith(ownTitlePrefix);
         boolean isConfirmGui = viewTitle.equals(confirmTitle);
 
@@ -578,7 +570,6 @@ public class Auction implements CommandExecutor, Listener {
 
         int slot = event.getSlot();
 
-        // Handle Confirm Listing GUI clicks
         if (isConfirmGui) {
             String action = plugin.getConfig().getString("ah.confirm.items." + slot + ".action", "");
             AuctionSession session = sessions.get(player.getUniqueId());
@@ -607,7 +598,6 @@ public class Auction implements CommandExecutor, Listener {
 
         int itemSlots = event.getView().getTopInventory().getSize() - 9;
 
-        // Handle Your Items GUI clicks
         if (isOwnGui) {
             if (slot >= itemSlots) {
                 String action = plugin.getConfig().getString("ah.yourItems.items." + slot + ".action", "");
@@ -637,7 +627,9 @@ public class Auction implements CommandExecutor, Listener {
                     return;
                 }
                 if (listings.remove(targetListing)) {
-                    database.deleteAsync(targetListing.getListingId());
+                    if (database != null) {
+                        database.deleteAuctionAsync(targetListing.getListingId());
+                    }
                     player.getInventory().addItem(targetListing.getItem());
                     player.sendMessage(ChatColor.YELLOW + "Removed your listing and returned the item.");
                 }
@@ -647,7 +639,6 @@ public class Auction implements CommandExecutor, Listener {
             return;
         }
 
-        // Handle Main Auction House GUI clicks
         if (slot >= itemSlots) {
             handleMenuClick(player, slot, event.isRightClick());
             return;
@@ -743,7 +734,6 @@ public class Auction implements CommandExecutor, Listener {
         event.setCancelled(true);
         String message = event.getMessage().trim();
 
-        // Handle session state and GUI opening together on the main server thread
         Bukkit.getScheduler().runTask(plugin, () -> {
             if (!player.isOnline()) return;
 
@@ -759,17 +749,20 @@ public class Auction implements CommandExecutor, Listener {
 
     private AuctionItem findMatchingListing(ItemStack displayItem) {
         if (displayItem == null || !displayItem.hasItemMeta()) return null;
-        String idStr = displayItem.getItemMeta().getPersistentDataContainer().get(listingKey, PersistentDataType.STRING);
-        if (idStr == null) return null;
+
+        String idString = displayItem.getItemMeta().getPersistentDataContainer()
+                .get(listingKey, PersistentDataType.STRING);
+        if (idString == null) return null;
 
         try {
-            UUID targetId = UUID.fromString(idStr);
+            UUID targetId = UUID.fromString(idString);
             for (AuctionItem listing : listings) {
                 if (listing.getListingId().equals(targetId)) {
                     return listing;
                 }
             }
         } catch (IllegalArgumentException ignored) {
+            return null;
         }
         return null;
     }
@@ -797,7 +790,7 @@ public class Auction implements CommandExecutor, Listener {
             return;
         }
 
-        // Claim the listing atomically before charging money
+        // Atomically claim listing before processing payment
         if (!listings.remove(listing)) {
             buyer.sendMessage(ChatColor.RED + "This item is no longer available.");
             buyer.closeInventory();
@@ -810,10 +803,13 @@ public class Auction implements CommandExecutor, Listener {
             return;
         }
 
-        database.deleteAsync(listing.getListingId());
+        if (database != null) {
+            database.deleteAuctionAsync(listing.getListingId());
+        }
 
         OfflinePlayer seller = Bukkit.getOfflinePlayer(listing.getSellerUUID());
         econ.depositPlayer(seller, price);
+
         buyer.getInventory().addItem(listing.getItem());
 
         buyer.sendMessage(ChatColor.GREEN + "Bought " + listing.getItem().getAmount() + "x "
@@ -826,13 +822,6 @@ public class Auction implements CommandExecutor, Listener {
 
         AuctionSession session = sessions.computeIfAbsent(buyer.getUniqueId(), k -> new AuctionSession());
         openInventory(buyer, session);
-    }
-
-    @EventHandler
-    public void onPlayerQuit(PlayerQuitEvent event) {
-        UUID playerId = event.getPlayer().getUniqueId();
-        sessions.remove(playerId);
-        awaitingSearchInput.remove(playerId);
     }
 
     private String color(String text) {
@@ -876,5 +865,12 @@ public class Auction implements CommandExecutor, Listener {
         public ItemStack getItem() { return item; }
         public double getPrice() { return price; }
         public long getTimestamp() { return timestamp; }
+    }
+
+    @EventHandler
+    public void onPlayerQuit(PlayerQuitEvent event) {
+        UUID playerId = event.getPlayer().getUniqueId();
+        sessions.remove(playerId);
+        awaitingSearchInput.remove(playerId);
     }
 }

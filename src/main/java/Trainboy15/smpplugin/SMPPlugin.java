@@ -10,10 +10,12 @@ import trainboy15.smpplugin.commands.Sell;
 import trainboy15.smpplugin.commands.Settings;
 import trainboy15.smpplugin.commands.Shop;
 import trainboy15.smpplugin.commands.Tpa;
+import trainboy15.smpplugin.database.DatabaseManager;
 
 public class SMPPlugin extends JavaPlugin {
 
     private Economy econ = null;
+    private DatabaseManager databaseManager;
     private Settings settingsHandler;
     private Auction auctionHandler;
     private Orders ordersHandler;
@@ -29,8 +31,11 @@ public class SMPPlugin extends JavaPlugin {
             return;
         }
 
-        // Register /settings command and GUI click listener first so other handlers can use it
-        settingsHandler = new Settings(this);
+        // Initialize shared SQLite database manager first
+        databaseManager = new DatabaseManager(this);
+
+        // Register /settings command and listener (pass databaseManager)
+        settingsHandler = new Settings(this, databaseManager);
         if (getCommand("settings") != null) {
             getCommand("settings").setExecutor(settingsHandler);
         }
@@ -53,15 +58,15 @@ public class SMPPlugin extends JavaPlugin {
         }
         getServer().getPluginManager().registerEvents(sellCommand, this);
 
-        // Register /ah command and GUI click listener (passing settingsHandler)
-        auctionHandler = new Auction(this, settingsHandler);
+        // Register /ah command and GUI click listener (pass settingsHandler & databaseManager)
+        auctionHandler = new Auction(this, settingsHandler, databaseManager);
         if (getCommand("ah") != null) {
             getCommand("ah").setExecutor(auctionHandler);
         }
         getServer().getPluginManager().registerEvents(auctionHandler, this);
 
-        // Register /orders command and GUI click listener
-        ordersHandler = new Orders(this);
+        // Register /orders command and GUI click listener (pass databaseManager)
+        ordersHandler = new Orders(this, databaseManager);
         if (getCommand("orders") != null) {
             getCommand("orders").setExecutor(ordersHandler);
         }
@@ -90,12 +95,11 @@ public class SMPPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
-        if (auctionHandler != null) {
-            auctionHandler.closeDatabase();
+        if (databaseManager != null) {
+            databaseManager.close();
         }
         getLogger().info("SMP Plugin disabled.");
     }
-
 
     private boolean setupEconomy() {
         if (getServer().getPluginManager().getPlugin("Vault") == null) {
@@ -115,5 +119,9 @@ public class SMPPlugin extends JavaPlugin {
 
     public Settings getSettings() {
         return settingsHandler;
+    }
+
+    public DatabaseManager getDatabaseManager() {
+        return databaseManager;
     }
 }

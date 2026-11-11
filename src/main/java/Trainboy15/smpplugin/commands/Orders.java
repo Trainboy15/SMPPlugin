@@ -1,6 +1,7 @@
 package trainboy15.smpplugin.commands;
 
 import trainboy15.smpplugin.SMPPlugin;
+import trainboy15.smpplugin.database.DatabaseManager;
 
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Bukkit;
@@ -16,6 +17,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -23,22 +25,25 @@ import org.bukkit.inventory.meta.ItemMeta;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 public class Orders implements CommandExecutor, Listener {
 
     private final SMPPlugin plugin;
+    private final DatabaseManager database;
     private final List<OrderRequest> orders = new ArrayList<>();
     private final Map<UUID, OrderSession> sessions = new HashMap<>();
-    private final Set<UUID> awaitingSearchInput = new HashSet<>();
+    private final Set<UUID> awaitingSearchInput = ConcurrentHashMap.newKeySet();
 
-    public Orders(SMPPlugin plugin) {
+    public Orders(SMPPlugin plugin, DatabaseManager database) {
         this.plugin = plugin;
+        this.database = database;
+        this.orders.addAll(database.loadAllOrders());
     }
 
     @Override
@@ -106,8 +111,10 @@ public class Orders implements CommandExecutor, Listener {
                 return true;
             }
 
-            // Withdraw full escrow upfront
-            econ.withdrawPlayer(player, totalCost);
+            if (!econ.withdrawPlayer(player, totalCost).transactionSuccess()) {
+                player.sendMessage(ChatColor.RED + "Transaction failed. Please try again.");
+                return true;
+            }
 
             ItemStack template = itemInHand.clone();
             template.setAmount(1);
@@ -127,15 +134,19 @@ public class Orders implements CommandExecutor, Listener {
     }
 
     private void createOrder(Player requester, ItemStack template, int amount, double pricePerItem) {
-        orders.add(new OrderRequest(
+        OrderRequest newOrder = new OrderRequest(
                 UUID.randomUUID(),
                 requester.getUniqueId(),
                 requester.getName(),
                 template,
                 amount,
+                0,
+                0,
                 pricePerItem,
                 System.currentTimeMillis()
-        ));
+        );
+        orders.add(newOrder);
+        database.insertOrderAsync(newOrder);
     }
 
     private void openInventory(Player player, OrderSession session) {
@@ -567,13 +578,24 @@ public class Orders implements CommandExecutor, Listener {
         event.setCancelled(true);
         String message = event.getMessage().trim();
 
-        OrderSession session = sessions.computeIfAbsent(player.getUniqueId(), k -> new OrderSession());
-        if (!message.equalsIgnoreCase("cancel")) {
-            session.searchQuery = message;
-            session.page = 1;
-        }
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            if (!player.isOnline()) return;
 
-        Bukkit.getScheduler().runTask(plugin, () -> openInventory(player, session));
+            OrderSession session = sessions.computeIfAbsent(player.getUniqueId(), k -> new OrderSession());
+            if (!message.equalsIgnoreCase("cancel")) {
+                session.searchQuery = message;
+                session.page = 1;
+            }
+
+            openInventory(player, session);
+        });
+    }
+
+    @EventHandler
+    public void onPlayerQuit(PlayerQuitEvent event) {
+        UUID playerId = event.getPlayer().getUniqueId();
+        sessions.remove(playerId);
+        awaitingSearchInput.remove(playerId);
     }
 
     private void handleFulfillOrder(Player supplier, OrderRequest order, OrderSession session) {
@@ -589,6 +611,12 @@ public class Orders implements CommandExecutor, Listener {
         }
 
         int needed = order.getRemainingAmount();
+        if (needed <= 0) {
+            supplier.sendMessage(ChatColor.RED + "This order has already been fulfilled.");
+            openInventory(supplier, session);
+            return;
+        }
+
         int delivered = removeMatchingItems(supplier, order.getTemplateItem(), needed);
 
         if (delivered <= 0) {
@@ -597,6 +625,8 @@ public class Orders implements CommandExecutor, Listener {
         }
 
         order.addDelivery(delivered);
+        database.updateOrderProgressAsync(order.getOrderId(), order.getAmountDelivered(), order.getUnclaimedItems());
+
         double payout = delivered * order.getPricePerItem();
         econ.depositPlayer(supplier, payout);
 
@@ -641,9 +671,12 @@ public class Orders implements CommandExecutor, Listener {
             owner.sendMessage(ChatColor.GREEN + "Claimed " + claimedTotal + "x " + order.getTemplateItem().getType().name() + "!");
         }
 
-        // Remove completed orders once all items are claimed
+        // Remove completed orders once all items are claimed, otherwise update progress
         if (order.getRemainingAmount() == 0 && order.getUnclaimedItems() == 0) {
             orders.remove(order);
+            database.deleteOrderAsync(order.getOrderId());
+        } else if (claimedTotal > 0) {
+            database.updateOrderProgressAsync(order.getOrderId(), order.getAmountDelivered(), order.getUnclaimedItems());
         }
 
         openInventory(owner, session);
@@ -655,6 +688,14 @@ public class Orders implements CommandExecutor, Listener {
             return;
         }
 
+        if (!orders.remove(order)) {
+            owner.sendMessage(ChatColor.RED + "This order is no longer active.");
+            openInventory(owner, session);
+            return;
+        }
+
+        database.deleteOrderAsync(order.getOrderId());
+
         int remaining = order.getRemainingAmount();
         double refund = remaining * order.getPricePerItem();
 
@@ -663,7 +704,6 @@ public class Orders implements CommandExecutor, Listener {
             econ.depositPlayer(owner, refund);
         }
 
-        orders.remove(order);
         owner.sendMessage(ChatColor.YELLOW + "Canceled order and refunded $" + refund + ".");
         openInventory(owner, session);
     }
@@ -702,7 +742,7 @@ public class Orders implements CommandExecutor, Listener {
         final Map<Integer, OrderRequest> displayedSlots = new HashMap<>();
     }
 
-    private static class OrderRequest {
+    public static class OrderRequest {
         private final UUID orderId;
         private final UUID requesterUUID;
         private final String requesterName;
@@ -714,14 +754,15 @@ public class Orders implements CommandExecutor, Listener {
         private final long timestamp;
 
         public OrderRequest(UUID orderId, UUID requesterUUID, String requesterName, ItemStack templateItem,
-                            int amountRequested, double pricePerItem, long timestamp) {
+                            int amountRequested, int amountDelivered, int unclaimedItems,
+                            double pricePerItem, long timestamp) {
             this.orderId = orderId;
             this.requesterUUID = requesterUUID;
             this.requesterName = requesterName;
             this.templateItem = templateItem;
             this.amountRequested = amountRequested;
-            this.amountDelivered = 0;
-            this.unclaimedItems = 0;
+            this.amountDelivered = amountDelivered;
+            this.unclaimedItems = unclaimedItems;
             this.pricePerItem = pricePerItem;
             this.timestamp = timestamp;
         }
