@@ -6,7 +6,8 @@ import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
-import org.bukkit.ban.BanListType;
+import org.bukkit.BanList;
+import org.bukkit.profile.PlayerProfile;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -408,7 +409,9 @@ public class Admin implements CommandExecutor, Listener {
             switch (action.toLowerCase()) {
                 case "toggle_ban":
                     if (target.isBanned()) {
-                        Bukkit.getBanList(BanListType.PROFILE).pardon(target.getPlayerProfile());
+                        @SuppressWarnings("unchecked")
+BanList<PlayerProfile> banList = (BanList<PlayerProfile>) Bukkit.getBanList(BanList.Type.NAME);
+banList.pardon(target.getPlayerProfile());
                         admin.sendMessage(color("&aUnbanned " + targetName + "."));
                         openPlayerDetailGui(admin, target);
                     } else {
