@@ -125,7 +125,7 @@ public class Admin implements CommandExecutor, Listener {
         session.targetPlayer = target.getUniqueId();
 
         String targetName = target.getName() != null ? target.getName() : target.getUniqueId().toString().substring(0, 8);
-        boolean isBanned = Bukkit.getBanList(BanList.Type.NAME).isBanned(targetName);
+        boolean isBanned = target.isBanned();
 
         Economy econ = plugin.getEconomy();
         double bal = (econ != null) ? econ.getBalance(target) : 0.0;
@@ -397,16 +397,14 @@ public class Admin implements CommandExecutor, Listener {
             switch (action) {
                 case "toggle_ban":
                     BanList banList = Bukkit.getBanList(BanList.Type.NAME);
-                    if (banList.isBanned(targetName)) {
-                        banList.pardon(targetName);
+                    if (target.isBanned()) {
+                        Bukkit.getBanList(io.papermc.paper.ban.BanListType.PROFILE).pardon(target.getPlayerProfile());
                         admin.sendMessage(color("&aUnbanned " + targetName + "."));
                     } else {
-                        banList.addBan(targetName, "Banned by an administrator.", (java.time.Instant) null, admin.getName());
-                        if (target.isOnline() && target.getPlayer() != null) {
-                            target.getPlayer().kickPlayer(color("&cYou have been banned by an administrator."));
-                        }
+                        target.ban("Banned by an administrator.", (java.time.Instant) null, admin.getName(), true);
                         admin.sendMessage(color("&cBanned " + targetName + "."));
                     }
+
                     openPlayerDetailGui(admin, target);
                     break;
 
@@ -580,7 +578,7 @@ public class Admin implements CommandExecutor, Listener {
             meta.setDisplayName(color("&b" + name));
             List<String> lore = new ArrayList<>();
             lore.add(color("&7Status: " + (target.isOnline() ? "&aOnline" : "&7Offline")));
-            lore.add(color("&7Banned: " + (Bukkit.getBanList(BanList.Type.NAME).isBanned(name) ? "&cYes" : "&aNo")));
+            lore.add(color("&7Banned: " + (target.isBanned() ? "&cYes" : "&aNo")));
             lore.add("");
             lore.add(color("&eClick to manage player!"));
             meta.setLore(lore);
