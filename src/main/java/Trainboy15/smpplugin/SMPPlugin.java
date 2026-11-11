@@ -90,8 +90,12 @@ public class SMPPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (auctionHandler != null) {
+            auctionHandler.closeDatabase();
+        }
         getLogger().info("SMP Plugin disabled.");
     }
+
 
     private boolean setupEconomy() {
         if (getServer().getPluginManager().getPlugin("Vault") == null) {

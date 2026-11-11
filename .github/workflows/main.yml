@@ -41,7 +41,7 @@ jobs:
         with:
           tag_name: "build-${{ github.run_number }}"
           name: "Build #${{ github.run_number }}"
-          body: "Automated build from commit name ${{ github.event.head_commit.message }}"
+          body: "${{ github.event.head_commit.message }} (Automated build)"
           files: build/libs/*.jar
 
       - name: Save Failure Log to Repository

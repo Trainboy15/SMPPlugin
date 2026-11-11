@@ -229,6 +229,9 @@ ah:
   size: 54
   OptionSelectedPrefix: "&b• &b"
   OptionUnselectedPrefix: "&f◦ &f"
+  messages:
+    noPermission: '&cYou can only have %maxListings% auctions listed at once. Hyper&b+&c gets %premiumMaxListings% slots.'
+    
   yourItems:
     title: "&8Auction -> Your Items"
     size: 27
