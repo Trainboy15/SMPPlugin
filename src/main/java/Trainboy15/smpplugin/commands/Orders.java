@@ -728,6 +728,28 @@ public class Orders implements CommandExecutor, Listener {
         player.getInventory().setStorageContents(contents);
         return maxToRemove - remainingToRemove;
     }
+    public List<OrderRequest> getOrders() {
+        return new ArrayList<>(orders);
+    }
+
+    public boolean adminRemoveOrder(OrderRequest target, boolean refundRemaining) {
+        if (!orders.remove(target)) return false;
+        database.deleteOrderAsync(target.getOrderId());
+
+        if (refundRemaining) {
+            double refund = target.getRemainingAmount() * target.getPricePerItem();
+            Economy econ = plugin.getEconomy();
+            if (econ != null && refund > 0) {
+                OfflinePlayer requester = Bukkit.getOfflinePlayer(target.getRequesterUUID());
+                econ.depositPlayer(requester, refund);
+                if (requester.isOnline() && requester.getPlayer() != null) {
+                    requester.getPlayer().sendMessage(ChatColor.YELLOW + "An admin cancelled your order and refunded $" + refund + ".");
+                }
+            }
+        }
+        return true;
+    }
+
 
     private String color(String text) {
         return ChatColor.translateAlternateColorCodes('&', text);

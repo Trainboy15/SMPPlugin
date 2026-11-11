@@ -23,7 +23,7 @@ public class Reload implements CommandExecutor, TabCompleter {
         // Handle /smp reload
         if (args.length == 1 && args[0].equalsIgnoreCase("reload")) {
             if (!sender.hasPermission("smp.admin")) {
-                sender.sendMessage(ChatColor.RED + "You do not have permission to use this command.");
+                sender.sendMessage(color(plugin.getConfig().getString("general.noCommand", "&cThis command does not exist.")));
                 return true;
             }
 

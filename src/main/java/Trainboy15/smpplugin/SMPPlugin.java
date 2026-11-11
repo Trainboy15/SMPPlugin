@@ -3,6 +3,7 @@ package trainboy15.smpplugin;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
+import trainboy15.smpplugin.commands.Admin;
 import trainboy15.smpplugin.commands.Auction;
 import trainboy15.smpplugin.commands.Orders;
 import trainboy15.smpplugin.commands.Reload;
@@ -19,6 +20,7 @@ public class SMPPlugin extends JavaPlugin {
     private Settings settingsHandler;
     private Auction auctionHandler;
     private Orders ordersHandler;
+    private Admin adminHandler;
 
     @Override
     public void onEnable() {
@@ -71,6 +73,13 @@ public class SMPPlugin extends JavaPlugin {
             getCommand("orders").setExecutor(ordersHandler);
         }
         getServer().getPluginManager().registerEvents(ordersHandler, this);
+
+        // Register /admin command and GUI click listener
+        adminHandler = new Admin(this, auctionHandler, ordersHandler, settingsHandler);
+        if (getCommand("admin") != null) {
+            getCommand("admin").setExecutor(adminHandler);
+        }
+        getServer().getPluginManager().registerEvents(adminHandler, this);
 
         // Register /smp reload command and tab completer
         Reload reloadHandler = new Reload(this);

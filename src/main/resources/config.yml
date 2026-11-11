@@ -462,4 +462,179 @@ settings:
       action: close
       lore:
         - '&fClick to close menu'
+admin:
+  title: '&8Admin Panel'
+  size: 27
+  items:
+    '11':
+      material: PLAYER_HEAD
+      name: '&b&lManage Players'
+      action: players
+      lore:
+        - '&7Ban/unban players, adjust Vault'
+        - '&7balances, view ranks, & edit settings.'
+        - ''
+        - '&eClick to open!'
+    '13':
+      material: GOLD_INGOT
+      name: '&6&lModerate Auctions'
+      action: auctions
+      lore:
+        - '&7Active Listings: &f%auctions_count%'
+        - '&7Force-remove or return player'
+        - '&7auction house listings.'
+        - ''
+        - '&eClick to open!'
+    '15':
+      material: HOPPER
+      name: '&a&lModerate Orders'
+      action: orders
+      lore:
+        - '&7Active Orders: &f%orders_count%'
+        - '&7Force-delete or cancel & refund'
+        - '&7active player buy orders.'
+        - ''
+        - '&eClick to open!'
+    '22':
+      material: BARRIER
+      name: '&cClose'
+      action: close
+      lore:
+        - '&7Close the admin menu.'
 
+  players:
+    title: '&8Admin -> Players (Page %page%/%maxpage%)'
+    size: 54
+    items:
+      '45':
+        material: ARROW
+        name: '&ePrevious Page'
+        action: previous
+        lore:
+          - '&7Go to page %prevpage%'
+      '48':
+        material: OAK_SIGN
+        name: '&bSearch Offline/Online Player'
+        action: search
+        lore:
+          - '&7Click to type a player name in chat.'
+      '49':
+        material: BARRIER
+        name: '&cBack to Main Menu'
+        action: back
+        lore:
+          - '&7Return to Admin Panel.'
+      '53':
+        material: ARROW
+        name: '&eNext Page'
+        action: next
+        lore:
+          - '&7Go to page %nextpage%'
+
+  managePlayer:
+    title: '&8Admin -> %player%'
+    size: 36
+    items:
+      '4':
+        material: '%player_head%'
+        name: '&b%player%'
+        action: info
+        lore:
+          - '&7Status: %online_status%'
+          - '&7Banned: %ban_status%'
+      '10':
+        material: RED_DYE
+        name: '&c&lBan / Unban Player'
+        action: toggle_ban
+        lore:
+          - '&7Current Status: %ban_status%'
+          - '&eClick to toggle ban for %player%.'
+      '11':
+        material: IRON_BOOTS
+        name: '&6&lKick Player'
+        action: kick
+        lore:
+          - '&7Status: %online_status%'
+          - '&eClick to kick from server.'
+      '13':
+        material: EMERALD
+        name: '&a&lVault Economy'
+        action: economy
+        lore:
+          - '&7Current Balance: &a$%balance%'
+          - ''
+          - '&aLeft-Click: &f+$1,000'
+          - '&cRight-Click: &f-$1,000'
+          - '&4Shift-Right-Click: &fReset to $0'
+      '15':
+        material: NAME_TAG
+        name: '&d&lPermissions & Rank'
+        action: permissions
+        lore:
+          - '&7Primary Group: &f%group%'
+          - '&7Hyper+ (smp.premium): %is_premium%'
+          - '&7Admin (smp.admin): %is_admin%'
+      '16':
+        material: COMPARATOR
+        name: '&e&lPlayer Settings'
+        action: settings
+        lore:
+          - '&7AH Notifications: %ah_notifications%'
+          - '&7AH Confirm GUI: %ah_confirm%'
+          - ''
+          - '&eLeft-Click: &fToggle AH Notifications'
+          - '&eRight-Click: &fToggle AH Confirm'
+      '31':
+        material: BARRIER
+        name: '&cBack to Players'
+        action: back
+        lore:
+          - '&7Return to player list.'
+
+  auctions:
+    title: '&8Admin -> Auctions (Page %page%/%maxpage%)'
+    size: 54
+    items:
+      '45':
+        material: ARROW
+        name: '&ePrevious Page'
+        action: previous
+        lore:
+          - '&7Go to page %prevpage%'
+      '49':
+        material: BARRIER
+        name: '&cBack to Main Menu'
+        action: back
+        lore:
+          - '&7Return to Admin Panel.'
+      '53':
+        material: ARROW
+        name: '&eNext Page'
+        action: next
+        lore:
+          - '&7Go to page %nextpage%'
+
+  orders:
+    title: '&8Admin -> Orders (Page %page%/%maxpage%)'
+    size: 54
+    items:
+      '45':
+        material: ARROW
+        name: '&ePrevious Page'
+        action: previous
+        lore:
+          - '&7Go to page %prevpage%'
+      '49':
+        material: BARRIER
+        name: '&cBack to Main Menu'
+        action: back
+        lore:
+          - '&7Return to Admin Panel.'
+      '53':
+        material: ARROW
+        name: '&eNext Page'
+        action: next
+        lore:
+          - '&7Go to page %nextpage%'
+general:
+  noCommand: '&cThis command does not exist.'

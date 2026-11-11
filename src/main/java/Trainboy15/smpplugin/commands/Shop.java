@@ -85,7 +85,7 @@ public class Shop implements CommandExecutor, Listener {
 
         player.openInventory(inventory);
     }
-        private void openPage(Player player, String pageKey) {
+    private void openPage(Player player, String pageKey) {
         String pagePath = "shop.pages." + pageKey;
         ConfigurationSection pageSection = plugin.getConfig().getConfigurationSection(pagePath);
         if (pageSection == null) return;

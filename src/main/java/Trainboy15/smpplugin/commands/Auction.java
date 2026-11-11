@@ -345,7 +345,7 @@ public class Auction implements CommandExecutor, Listener {
             if (meta != null) {
                 if (plugin.getConfig().contains(path + ".name")) {
                     meta.setDisplayName(color(plugin.getConfig().getString(path + ".name", "")
-                            .replace("%itemName%", itemName)
+                            .replace("%itemName%", color(itemName))
                             .replace("%price%", formattedPrice)));
                 }
                 List<String> lore = meta.hasLore() ? new ArrayList<>(meta.getLore()) : new ArrayList<>();
@@ -354,7 +354,7 @@ public class Auction implements CommandExecutor, Listener {
                         lore.add(color(line
                                 .replace("%item%", item.getType().name())
                                 .replace("%price%", formattedPrice)
-                                .replace("%itemName%", itemName)));
+                                .replace("%itemName%", color(itemName))));
                     }
                 } else if (plugin.getConfig().isString(path + ".lore")) {
                     lore.add(color(plugin.getConfig().getString(path + ".lore", "")
@@ -823,6 +823,25 @@ public class Auction implements CommandExecutor, Listener {
         AuctionSession session = sessions.computeIfAbsent(buyer.getUniqueId(), k -> new AuctionSession());
         openInventory(buyer, session);
     }
+    public List<AuctionItem> getListings() {
+        return new ArrayList<>(listings);
+    }
+
+    public boolean adminRemoveListing(AuctionItem target, boolean returnToSeller) {
+        if (!listings.remove(target)) return false;
+        database.deleteAuctionAsync(target.getListingId());
+
+        if (returnToSeller) {
+            OfflinePlayer seller = Bukkit.getOfflinePlayer(target.getSellerUUID());
+            if (seller.isOnline() && seller.getPlayer() != null) {
+                HashMap<Integer, ItemStack> left = seller.getPlayer().getInventory().addItem(target.getItem());
+                left.values().forEach(drop -> seller.getPlayer().getWorld().dropItemNaturally(seller.getPlayer().getLocation(), drop));
+                seller.getPlayer().sendMessage(ChatColor.YELLOW + "An admin cancelled your auction listing and returned your item.");
+            }
+        }
+        return true;
+    }
+
 
     private String color(String text) {
         return ChatColor.translateAlternateColorCodes('&', text);
