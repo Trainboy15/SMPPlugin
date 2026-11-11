@@ -5,9 +5,11 @@ import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 import trainboy15.smpplugin.commands.Auction;
 import trainboy15.smpplugin.commands.Orders;
+import trainboy15.smpplugin.commands.Reload;
 import trainboy15.smpplugin.commands.Sell;
 import trainboy15.smpplugin.commands.Settings;
 import trainboy15.smpplugin.commands.Shop;
+import trainboy15.smpplugin.commands.Tpa;
 
 public class SMPPlugin extends JavaPlugin {
 
@@ -65,12 +67,23 @@ public class SMPPlugin extends JavaPlugin {
         }
         getServer().getPluginManager().registerEvents(ordersHandler, this);
 
+        // Register /smp reload command and tab completer
         Reload reloadHandler = new Reload(this);
         if (getCommand("smp") != null) {
             getCommand("smp").setExecutor(reloadHandler);
             getCommand("smp").setTabCompleter(reloadHandler);
         }
 
+        // Register /tpa, /tpahere, /tpaccept, /tpadeny, GUI listener, and tab completer
+        Tpa tpaHandler = new Tpa(this);
+        String[] tpaCommands = {"tpa", "tpahere", "tpaccept", "tpadeny"};
+        for (String cmd : tpaCommands) {
+            if (getCommand(cmd) != null) {
+                getCommand(cmd).setExecutor(tpaHandler);
+                getCommand(cmd).setTabCompleter(tpaHandler);
+            }
+        }
+        getServer().getPluginManager().registerEvents(tpaHandler, this);
 
         getLogger().info("SMP Plugin v" + getDescription().getVersion() + " enabled.");
     }

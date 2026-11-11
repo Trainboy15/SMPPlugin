@@ -110,7 +110,7 @@ public class Settings implements CommandExecutor, Listener {
 
         String enabledPrefix = plugin.getConfig().getString("settings.EnabledPrefix", "&a✔ &fEnabled");
         String disabledPrefix = plugin.getConfig().getString("settings.DisabledPrefix", "&c✘ &fDisabled");
-        String statusText = enabled ? enabledPrefix : disabledPrefix;
+        String statusText = enabled ? disabledPrefix : enabledPrefix;
 
         ItemStack display = new ItemStack(material);
         ItemMeta meta = display.getItemMeta();
@@ -175,11 +175,20 @@ public class Settings implements CommandExecutor, Listener {
     }
 
     public void setSetting(UUID uuid, String settingKey, boolean value) {
-        if (settingKey == null || settingKey.isEmpty()) return;
+        if (uuid == null || settingKey == null || settingKey.isEmpty()) return;
+
+        Player player = Bukkit.getPlayer(uuid);
         String normalizedKey = settingKey.toLowerCase().replace("toggle_", "");
+
+        if (normalizedKey.equals("ah_confirm") && player != null && !player.hasPermission("smp.premium")) {
+            player.sendMessage(color("&cYou need Hyper&b+ &cto change this setting!"));
+            return;
+        }
+
         playerData.set("players." + uuid.toString() + "." + normalizedKey, value);
         savePlayerData();
     }
+
 
     public boolean hasAhNotifications(UUID uuid) {
         return getSetting(uuid, "ah_notifications");

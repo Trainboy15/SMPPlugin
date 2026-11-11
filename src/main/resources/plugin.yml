@@ -9,7 +9,7 @@ authors: [Trainboy15]
 commands:
   smp:
     description: Main SMP command
-    usage: /smp
+    usage: /smp [reload]
     permission: smp.player
   help:
     description: Help command
@@ -59,9 +59,6 @@ commands:
   admin:
     description: Player management
     usage: /admin <player>
-    permission: smp.admin
-  smp reload:
-    description: Reloads plugin config
     permission: smp.admin
 
 permissions:
