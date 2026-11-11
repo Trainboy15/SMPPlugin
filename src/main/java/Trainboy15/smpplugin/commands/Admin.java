@@ -2,11 +2,11 @@ package trainboy15.smpplugin.commands;
 
 import net.milkbowl.vault.economy.Economy;
 import net.milkbowl.vault.permission.Permission;
-import org.bukkit.BanList;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
+import org.bukkit.ban.BanListType;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -17,7 +17,6 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryType;
-import org.bukkit.inventory.AnvilInventory;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.Inventory;
@@ -27,6 +26,7 @@ import org.bukkit.inventory.meta.SkullMeta;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import trainboy15.smpplugin.SMPPlugin;
 
+import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -40,6 +40,8 @@ public class Admin implements CommandExecutor, Listener {
 
     private final Map<UUID, AdminSession> sessions = new HashMap<>();
     private final Set<UUID> awaitingPlayerSearch = ConcurrentHashMap.newKeySet();
+
+    private static final String TITLE_BAN_REASON = ChatColor.DARK_GRAY + "Admin -> Ban Reason";
 
     public Admin(SMPPlugin plugin, Auction auction, Orders orders, Settings settings) {
         this.plugin = plugin;
@@ -76,7 +78,7 @@ public class Admin implements CommandExecutor, Listener {
         return true;
     }
 
-    // ==================== CONFIG-DRIVEN GUI BUILDERS ====================
+    // ==================== GUI BUILDERS ====================
 
     public void openMainGui(Player admin) {
         AdminSession session = sessions.computeIfAbsent(admin.getUniqueId(), k -> new AdminSession());
@@ -84,7 +86,6 @@ public class Admin implements CommandExecutor, Listener {
 
         int size = normalizeSize(plugin.getConfig().getInt("admin.size", 27), 9);
         String title = color(plugin.getConfig().getString("admin.title", "&8Admin Panel"));
-        private static final String TITLE_BAN_REASON = ChatColor.DARK_GRAY + "Admin -> Ban Reason";
         Inventory inv = Bukkit.createInventory(null, size, title);
 
         Map<String, String> placeholders = new HashMap<>();
@@ -106,8 +107,7 @@ public class Admin implements CommandExecutor, Listener {
         session.page = Math.max(1, Math.min(session.page, maxPages));
 
         String rawTitle = plugin.getConfig().getString("admin.players.title", "&8Admin -> Players (Page %page%/%maxpage%)");
-        String title = color(applyPagePlaceholders(rawTitle, session.page, maxPages));
-
+        String title = color(replacePagePlaceholders(rawTitle, session.page, maxPages));
         Inventory inv = Bukkit.createInventory(null, size, title);
         session.displayedPlayers.clear();
 
@@ -118,7 +118,7 @@ public class Admin implements CommandExecutor, Listener {
             session.displayedPlayers.put(i, target.getUniqueId());
         }
 
-        Map<String, String> placeholders = pagePlaceholderMap(session.page, maxPages);
+        Map<String, String> placeholders = pagePlaceholders(session.page, maxPages);
         populateConfiguredItems(inv, "admin.players.items", placeholders, null);
         admin.openInventory(inv);
     }
@@ -128,24 +128,34 @@ public class Admin implements CommandExecutor, Listener {
         session.currentMenu = MenuType.MANAGE_PLAYER;
         session.targetPlayer = target.getUniqueId();
 
-        String targetName = target.getName() != null ? target.getName() : target.getUniqueId().toString().substring(0, 8);
+        int size = normalizeSize(plugin.getConfig().getInt("admin.managePlayer.size", 36), 9);
+        String name = target.getName() != null ? target.getName() : target.getUniqueId().toString().substring(0, 8);
         boolean isBanned = target.isBanned();
+
+        String rawTitle = plugin.getConfig().getString("admin.managePlayer.title", "&8Admin -> %player%");
+        String title = color(rawTitle.replace("%player%", name));
+        Inventory inv = Bukkit.createInventory(null, size, title);
 
         Economy econ = plugin.getEconomy();
         double bal = (econ != null) ? econ.getBalance(target) : 0.0;
 
         String primaryGroup = "Unknown";
-        if (vaultPerms != null && target.isOnline() && target.getPlayer() != null) {
-            primaryGroup = vaultPerms.getPrimaryGroup(target.getPlayer());
+        boolean isPremium = false;
+        boolean isAdmin = false;
+        if (target.isOnline() && target.getPlayer() != null) {
+            Player onlineTarget = target.getPlayer();
+            if (vaultPerms != null) {
+                primaryGroup = vaultPerms.getPrimaryGroup(onlineTarget);
+            }
+            isPremium = onlineTarget.hasPermission("smp.premium");
+            isAdmin = onlineTarget.hasPermission("smp.admin");
         }
 
-        boolean isPremium = target.isOnline() && target.getPlayer() != null && target.getPlayer().hasPermission("smp.premium");
-        boolean isAdmin = target.isOnline() && target.getPlayer() != null && target.getPlayer().hasPermission("smp.admin");
         boolean ahNotif = settings.hasAhNotifications(target.getUniqueId());
         boolean ahConfirm = settings.hasAhConfirm(target.getUniqueId());
 
         Map<String, String> placeholders = new HashMap<>();
-        placeholders.put("%player%", targetName);
+        placeholders.put("%player%", name);
         placeholders.put("%online_status%", target.isOnline() ? "&aOnline" : "&7Offline");
         placeholders.put("%ban_status%", isBanned ? "&cBanned" : "&aNot Banned");
         placeholders.put("%balance%", String.format("%.2f", bal));
@@ -155,12 +165,29 @@ public class Admin implements CommandExecutor, Listener {
         placeholders.put("%ah_notifications%", ahNotif ? "&aON" : "&cOFF");
         placeholders.put("%ah_confirm%", ahConfirm ? "&aON" : "&cOFF");
 
-        int size = normalizeSize(plugin.getConfig().getInt("admin.managePlayer.size", 36), 9);
-        String rawTitle = plugin.getConfig().getString("admin.managePlayer.title", "&8Admin -> %player%");
-        String title = color(replacePlaceholders(rawTitle, placeholders));
-
-        Inventory inv = Bukkit.createInventory(null, size, title);
         populateConfiguredItems(inv, "admin.managePlayer.items", placeholders, target);
+        admin.openInventory(inv);
+    }
+
+    public void openBanReasonAnvil(Player admin, OfflinePlayer target) {
+        AdminSession session = sessions.computeIfAbsent(admin.getUniqueId(), k -> new AdminSession());
+        session.currentMenu = MenuType.BAN_REASON;
+        session.targetPlayer = target.getUniqueId();
+
+        Inventory inv = Bukkit.createInventory(admin, InventoryType.ANVIL, TITLE_BAN_REASON);
+
+        ItemStack paper = new ItemStack(Material.PAPER);
+        ItemMeta meta = paper.getItemMeta();
+        if (meta != null) {
+            meta.setDisplayName("Rule Violation");
+            meta.setLore(Arrays.asList(
+                    color("&7Type the ban reason above,"),
+                    color("&7then click the output item to confirm.")
+            ));
+            paper.setItemMeta(meta);
+        }
+
+        inv.setItem(0, paper);
         admin.openInventory(inv);
     }
 
@@ -175,8 +202,7 @@ public class Admin implements CommandExecutor, Listener {
         session.page = Math.max(1, Math.min(session.page, maxPages));
 
         String rawTitle = plugin.getConfig().getString("admin.auctions.title", "&8Admin -> Auctions (Page %page%/%maxpage%)");
-        String title = color(applyPagePlaceholders(rawTitle, session.page, maxPages));
-
+        String title = color(replacePagePlaceholders(rawTitle, session.page, maxPages));
         Inventory inv = Bukkit.createInventory(null, size, title);
         session.displayedAuctions.clear();
 
@@ -199,7 +225,7 @@ public class Admin implements CommandExecutor, Listener {
             session.displayedAuctions.put(i, item);
         }
 
-        Map<String, String> placeholders = pagePlaceholderMap(session.page, maxPages);
+        Map<String, String> placeholders = pagePlaceholders(session.page, maxPages);
         populateConfiguredItems(inv, "admin.auctions.items", placeholders, null);
         admin.openInventory(inv);
     }
@@ -215,8 +241,7 @@ public class Admin implements CommandExecutor, Listener {
         session.page = Math.max(1, Math.min(session.page, maxPages));
 
         String rawTitle = plugin.getConfig().getString("admin.orders.title", "&8Admin -> Orders (Page %page%/%maxpage%)");
-        String title = color(applyPagePlaceholders(rawTitle, session.page, maxPages));
-
+        String title = color(replacePagePlaceholders(rawTitle, session.page, maxPages));
         Inventory inv = Bukkit.createInventory(null, size, title);
         session.displayedOrders.clear();
 
@@ -240,72 +265,12 @@ public class Admin implements CommandExecutor, Listener {
             session.displayedOrders.put(i, order);
         }
 
-        Map<String, String> placeholders = pagePlaceholderMap(session.page, maxPages);
+        Map<String, String> placeholders = pagePlaceholders(session.page, maxPages);
         populateConfiguredItems(inv, "admin.orders.items", placeholders, null);
         admin.openInventory(inv);
     }
 
-    // ==================== CONFIG ITEM POPULATION ====================
-
-    private void populateConfiguredItems(Inventory inv, String sectionPath, Map<String, String> placeholders, OfflinePlayer skullOwner) {
-        ConfigurationSection section = plugin.getConfig().getConfigurationSection(sectionPath);
-        if (section == null) return;
-
-        for (String key : section.getKeys(false)) {
-            try {
-                int slot = Integer.parseInt(key);
-                if (slot >= 0 && slot < inv.getSize()) {
-                    inv.setItem(slot, buildConfigItem(sectionPath + "." + key, placeholders, skullOwner));
-                }
-            } catch (NumberFormatException ignored) {
-                plugin.getLogger().warning("Invalid slot number in " + sectionPath + ": " + key);
-            }
-        }
-    }
-
-    private ItemStack buildConfigItem(String path, Map<String, String> placeholders, OfflinePlayer skullOwner) {
-        String matConfig = plugin.getConfig().getString(path + ".material", "STONE");
-        ItemStack item;
-
-        if (matConfig.equalsIgnoreCase("%player_head%") || matConfig.equalsIgnoreCase("SKULL")) {
-            item = new ItemStack(Material.PLAYER_HEAD);
-            if (skullOwner != null && item.getItemMeta() instanceof SkullMeta) {
-                SkullMeta skullMeta = (SkullMeta) item.getItemMeta();
-                skullMeta.setOwningPlayer(skullOwner);
-                item.setItemMeta(skullMeta);
-            }
-        } else {
-            Material mat = Material.matchMaterial(matConfig);
-            if (mat == null) mat = Material.STONE;
-            item = new ItemStack(mat);
-        }
-
-        ItemMeta meta = item.getItemMeta();
-        if (meta != null) {
-            String rawName = plugin.getConfig().getString(path + ".name", "");
-            meta.setDisplayName(color(replacePlaceholders(rawName, placeholders)));
-
-            List<String> lore = new ArrayList<>();
-            if (plugin.getConfig().isList(path + ".lore")) {
-                for (String line : plugin.getConfig().getStringList(path + ".lore")) {
-                    lore.add(color(replacePlaceholders(line, placeholders)));
-                }
-            } else if (plugin.getConfig().isString(path + ".lore")) {
-                lore.add(color(replacePlaceholders(plugin.getConfig().getString(path + ".lore", ""), placeholders)));
-            }
-            meta.setLore(lore);
-            item.setItemMeta(meta);
-        }
-        return item;
-    }
-
     // ==================== EVENT HANDLERS ====================
-    @EventHandler
-public void onInventoryClose(InventoryCloseEvent event) {
-    if (event.getView().getTitle().equals(TITLE_BAN_REASON)) {
-        event.getInventory().clear();
-    }
-}
 
     @EventHandler
     public void onInventoryClick(InventoryClickEvent event) {
@@ -313,16 +278,49 @@ public void onInventoryClose(InventoryCloseEvent event) {
         Player admin = (Player) event.getWhoClicked();
 
         AdminSession session = sessions.get(admin.getUniqueId());
-        if (session == null || session.currentMenu == null) return;
+        if (session == null || session.currentMenu == MenuType.NONE) return;
 
-        // Verify the open inventory title matches the expected configured title
-        if (!matchesActiveMenuTitle(event.getView().getTitle(), session)) {
+        String viewTitle = event.getView().getTitle();
+        if (!isAdminInventoryTitle(viewTitle)) {
+            session.currentMenu = MenuType.NONE;
             return;
         }
 
         event.setCancelled(true);
         if (!admin.hasPermission("smp.admin")) {
             admin.closeInventory();
+            return;
+        }
+
+        // Handle Anvil Ban Reason GUI
+        if (session.currentMenu == MenuType.BAN_REASON || viewTitle.equals(TITLE_BAN_REASON)) {
+            if (event.getRawSlot() != 2) return;
+
+            ItemStack result = event.getCurrentItem();
+            if (result == null || result.getType() == Material.AIR) return;
+
+            String reason = "Banned by an administrator.";
+            if (result.hasItemMeta() && result.getItemMeta().hasDisplayName()) {
+                String typed = ChatColor.stripColor(result.getItemMeta().getDisplayName()).trim();
+                if (!typed.isEmpty()) {
+                    reason = typed;
+                }
+            }
+
+            event.getView().getTopInventory().clear();
+            admin.closeInventory();
+
+            if (session.targetPlayer != null) {
+                OfflinePlayer target = Bukkit.getOfflinePlayer(session.targetPlayer);
+                String targetName = target.getName() != null ? target.getName() : target.getUniqueId().toString();
+
+                target.ban(reason, (Instant) null, admin.getName());
+                if (target.isOnline() && target.getPlayer() != null) {
+                    target.getPlayer().kickPlayer(color("&cYou have been banned.\n&7Reason: &f" + reason));
+                }
+                admin.sendMessage(color("&cBanned " + targetName + " &7for: &f" + reason));
+                openPlayerDetailGui(admin, target);
+            }
             return;
         }
 
@@ -334,45 +332,11 @@ public void onInventoryClose(InventoryCloseEvent event) {
         if (clicked == null || clicked.getType() == Material.AIR) return;
 
         int slot = event.getSlot();
-        if (title.equals(TITLE_BAN_REASON)) {
-    event.setCancelled(true);
-    if (event.getRawSlot() != 2) return; // Slot 2 is the Anvil output slot
-
-    ItemStack result = event.getCurrentItem();
-    if (result == null || result.getType() == Material.AIR) return;
-
-    String reason = "Banned by an administrator.";
-    if (result.hasItemMeta() && result.getItemMeta().hasDisplayName()) {
-        String typed = ChatColor.stripColor(result.getItemMeta().getDisplayName()).trim();
-        if (!typed.isEmpty()) {
-            reason = typed;
-        }
-    }
-
-    // Clear items before closing so nothing drops on the ground
-    event.getView().getTopInventory().clear();
-    admin.closeInventory();
-
-    AdminSession session = sessions.get(admin.getUniqueId());
-    if (session != null && session.targetPlayer != null) {
-        OfflinePlayer target = Bukkit.getOfflinePlayer(session.targetPlayer);
-        String targetName = target.getName() != null ? target.getName() : target.getUniqueId().toString();
-
-        target.ban(reason, (java.time.Instant) null, admin.getName());
-        if (target.isOnline() && target.getPlayer() != null) {
-            target.getPlayer().kickPlayer(color("&cYou have been banned.\n&7Reason: &f" + reason));
-        }
-        admin.sendMessage(color("&cBanned " + targetName + " &7for: &f" + reason));
-        openPlayerDetailGui(admin, target);
-    }
-    return;
-}
-
 
         // 1. Main Menu
         if (session.currentMenu == MenuType.MAIN) {
-            String action = plugin.getConfig().getString("admin.items." + slot + ".action", "").toLowerCase();
-            switch (action) {
+            String action = plugin.getConfig().getString("admin.items." + slot + ".action", "");
+            switch (action.toLowerCase()) {
                 case "players":
                     session.page = 1;
                     openPlayersGui(admin, session);
@@ -386,33 +350,36 @@ public void onInventoryClose(InventoryCloseEvent event) {
                     openOrdersModGui(admin, session);
                     break;
                 case "close":
+                    session.currentMenu = MenuType.NONE;
                     admin.closeInventory();
                     break;
             }
             return;
         }
 
+        int itemSlots = event.getView().getTopInventory().getSize() - 9;
+
         // 2. Players List
         if (session.currentMenu == MenuType.PLAYERS) {
-            int itemSlots = event.getView().getTopInventory().getSize() - 9;
             if (slot >= itemSlots) {
-                String action = plugin.getConfig().getString("admin.players.items." + slot + ".action", "").toLowerCase();
-                switch (action) {
+                String action = plugin.getConfig().getString("admin.players.items." + slot + ".action", "");
+                switch (action.toLowerCase()) {
                     case "previous":
                         session.page = Math.max(1, session.page - 1);
                         openPlayersGui(admin, session);
                         break;
+                    case "next":
+                        session.page++;
+                        openPlayersGui(admin, session);
+                        break;
                     case "search":
+                        session.currentMenu = MenuType.NONE;
                         admin.closeInventory();
                         awaitingPlayerSearch.add(admin.getUniqueId());
                         admin.sendMessage(color("&eType the player's exact username in chat (or &ccancel&e):"));
                         break;
                     case "back":
                         openMainGui(admin);
-                        break;
-                    case "next":
-                        session.page++;
-                        openPlayersGui(admin, session);
                         break;
                 }
                 return;
@@ -425,10 +392,10 @@ public void onInventoryClose(InventoryCloseEvent event) {
             return;
         }
 
-        // 3. Manage Individual Player
+        // 3. Player Detail View
         if (session.currentMenu == MenuType.MANAGE_PLAYER) {
-            String action = plugin.getConfig().getString("admin.managePlayer.items." + slot + ".action", "").toLowerCase();
-            if (action.equals("back")) {
+            String action = plugin.getConfig().getString("admin.managePlayer.items." + slot + ".action", "");
+            if (action.equalsIgnoreCase("back")) {
                 session.page = 1;
                 openPlayersGui(admin, session);
                 return;
@@ -438,19 +405,15 @@ public void onInventoryClose(InventoryCloseEvent event) {
             OfflinePlayer target = Bukkit.getOfflinePlayer(session.targetPlayer);
             String targetName = target.getName() != null ? target.getName() : target.getUniqueId().toString();
 
-            switch (action) {
+            switch (action.toLowerCase()) {
                 case "toggle_ban":
-                    BanList banList = Bukkit.getBanList(BanList.Type.NAME);
                     if (target.isBanned()) {
-                        Bukkit.getBanList(org.bukkit.ban.BanListType.PROFILE).pardon(target.getPlayerProfile());
+                        Bukkit.getBanList(BanListType.PROFILE).pardon(target.getPlayerProfile());
                         admin.sendMessage(color("&aUnbanned " + targetName + "."));
                         openPlayerDetailGui(admin, target);
                     } else {
                         openBanReasonAnvil(admin, target);
                     }
-
-
-                    openPlayerDetailGui(admin, target);
                     break;
 
                 case "kick":
@@ -497,20 +460,19 @@ public void onInventoryClose(InventoryCloseEvent event) {
 
         // 4. Auctions Moderation
         if (session.currentMenu == MenuType.AUCTIONS) {
-            int itemSlots = event.getView().getTopInventory().getSize() - 9;
             if (slot >= itemSlots) {
-                String action = plugin.getConfig().getString("admin.auctions.items." + slot + ".action", "").toLowerCase();
-                switch (action) {
+                String action = plugin.getConfig().getString("admin.auctions.items." + slot + ".action", "");
+                switch (action.toLowerCase()) {
                     case "previous":
                         session.page = Math.max(1, session.page - 1);
                         openAuctionsModGui(admin, session);
                         break;
-                    case "back":
-                        openMainGui(admin);
-                        break;
                     case "next":
                         session.page++;
                         openAuctionsModGui(admin, session);
+                        break;
+                    case "back":
+                        openMainGui(admin);
                         break;
                 }
                 return;
@@ -531,20 +493,19 @@ public void onInventoryClose(InventoryCloseEvent event) {
 
         // 5. Orders Moderation
         if (session.currentMenu == MenuType.ORDERS) {
-            int itemSlots = event.getView().getTopInventory().getSize() - 9;
             if (slot >= itemSlots) {
-                String action = plugin.getConfig().getString("admin.orders.items." + slot + ".action", "").toLowerCase();
-                switch (action) {
+                String action = plugin.getConfig().getString("admin.orders.items." + slot + ".action", "");
+                switch (action.toLowerCase()) {
                     case "previous":
                         session.page = Math.max(1, session.page - 1);
                         openOrdersModGui(admin, session);
                         break;
-                    case "back":
-                        openMainGui(admin);
-                        break;
                     case "next":
                         session.page++;
                         openOrdersModGui(admin, session);
+                        break;
+                    case "back":
+                        openMainGui(admin);
                         break;
                 }
                 return;
@@ -562,27 +523,13 @@ public void onInventoryClose(InventoryCloseEvent event) {
             }
         }
     }
-    public void openBanReasonAnvil(Player admin, OfflinePlayer target) {
-        AdminSession session = sessions.computeIfAbsent(admin.getUniqueId(), k -> new AdminSession());
-        session.targetPlayer = target.getUniqueId();
 
-        Inventory inv = Bukkit.createInventory(admin, InventoryType.ANVIL, TITLE_BAN_REASON);
-
-        ItemStack paper = new ItemStack(Material.PAPER);
-        ItemMeta meta = paper.getItemMeta();
-        if (meta != null) {
-            meta.setDisplayName("Rule Violation");
-            meta.setLore(Arrays.asList(
-                    color("&7Type the ban reason above,"),
-                    color("&7then click the output item to confirm.")
-            ));
-            paper.setItemMeta(meta);
+    @EventHandler
+    public void onInventoryClose(InventoryCloseEvent event) {
+        if (event.getView().getTitle().equals(TITLE_BAN_REASON)) {
+            event.getInventory().clear();
         }
-
-        inv.setItem(0, paper);
-        admin.openInventory(inv);   
     }
-
 
     @EventHandler
     public void onPlayerChat(AsyncPlayerChatEvent event) {
@@ -612,27 +559,60 @@ public void onInventoryClose(InventoryCloseEvent event) {
         awaitingPlayerSearch.remove(id);
     }
 
-    // ==================== UTILITY HELPERS ====================
+    // ==================== CONFIG & ITEM HELPERS ====================
 
-    private boolean matchesActiveMenuTitle(String viewTitle, AdminSession session) {
-        switch (session.currentMenu) {
-            case MAIN:
-                return viewTitle.equals(color(plugin.getConfig().getString("admin.title", "&8Admin Panel")));
-            case PLAYERS:
-                String pPrefix = color(plugin.getConfig().getString("admin.players.title", "&8Admin -> Players").split("%page%")[0]);
-                return viewTitle.startsWith(pPrefix);
-            case MANAGE_PLAYER:
-                String mPrefix = color(plugin.getConfig().getString("admin.managePlayer.title", "&8Admin -> %player%").split("%player%")[0]);
-                return viewTitle.startsWith(mPrefix);
-            case AUCTIONS:
-                String aPrefix = color(plugin.getConfig().getString("admin.auctions.title", "&8Admin -> Auctions").split("%page%")[0]);
-                return viewTitle.startsWith(aPrefix);
-            case ORDERS:
-                String oPrefix = color(plugin.getConfig().getString("admin.orders.title", "&8Admin -> Orders").split("%page%")[0]);
-                return viewTitle.startsWith(oPrefix);
-            default:
-                return false;
+    private void populateConfiguredItems(Inventory inv, String sectionPath, Map<String, String> placeholders, OfflinePlayer headOwner) {
+        ConfigurationSection section = plugin.getConfig().getConfigurationSection(sectionPath);
+        if (section == null) return;
+
+        int size = inv.getSize();
+        for (String key : section.getKeys(false)) {
+            try {
+                int slot = Integer.parseInt(key);
+                if (slot >= 0 && slot < size) {
+                    inv.setItem(slot, buildConfigItem(sectionPath + "." + slot, placeholders, headOwner));
+                }
+            } catch (NumberFormatException ignored) {
+                plugin.getLogger().warning("Invalid slot number in " + sectionPath + ": " + key);
+            }
         }
+    }
+
+    private ItemStack buildConfigItem(String path, Map<String, String> placeholders, OfflinePlayer headOwner) {
+        String matConfig = plugin.getConfig().getString(path + ".material", "STONE");
+        ItemStack item;
+
+        if ((matConfig.equalsIgnoreCase("%player_head%") || matConfig.equalsIgnoreCase("PLAYER_HEAD")) && headOwner != null) {
+            item = new ItemStack(Material.PLAYER_HEAD);
+            SkullMeta skullMeta = (SkullMeta) item.getItemMeta();
+            if (skullMeta != null) {
+                skullMeta.setOwningPlayer(headOwner);
+                item.setItemMeta(skullMeta);
+            }
+        } else {
+            Material mat = Material.matchMaterial(matConfig);
+            if (mat == null) mat = Material.STONE;
+            item = new ItemStack(mat);
+        }
+
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null) {
+            String rawName = plugin.getConfig().getString(path + ".name", "");
+            meta.setDisplayName(color(applyPlaceholders(rawName, placeholders)));
+
+            List<String> lore = new ArrayList<>();
+            if (plugin.getConfig().isList(path + ".lore")) {
+                for (String line : plugin.getConfig().getStringList(path + ".lore")) {
+                    lore.add(color(applyPlaceholders(line, placeholders)));
+                }
+            } else if (plugin.getConfig().isString(path + ".lore")) {
+                lore.add(color(applyPlaceholders(plugin.getConfig().getString(path + ".lore", ""), placeholders)));
+            }
+
+            meta.setLore(lore);
+            item.setItemMeta(meta);
+        }
+        return item;
     }
 
     private ItemStack createPlayerHead(OfflinePlayer target) {
@@ -653,7 +633,22 @@ public void onInventoryClose(InventoryCloseEvent event) {
         return head;
     }
 
-    private Map<String, String> pagePlaceholderMap(int page, int maxPages) {
+    private boolean isAdminInventoryTitle(String viewTitle) {
+        if (viewTitle.equals(TITLE_BAN_REASON)) return true;
+        String mainTitle = color(plugin.getConfig().getString("admin.title", "&8Admin Panel"));
+        String playersPrefix = color(plugin.getConfig().getString("admin.players.title", "&8Admin -> Players").split("%page%")[0]);
+        String managePrefix = color(plugin.getConfig().getString("admin.managePlayer.title", "&8Admin -> %player%").split("%player%")[0]);
+        String auctionsPrefix = color(plugin.getConfig().getString("admin.auctions.title", "&8Admin -> Auctions").split("%page%")[0]);
+        String ordersPrefix = color(plugin.getConfig().getString("admin.orders.title", "&8Admin -> Orders").split("%page%")[0]);
+
+        return viewTitle.equals(mainTitle)
+                || viewTitle.startsWith(playersPrefix)
+                || viewTitle.startsWith(managePrefix)
+                || viewTitle.startsWith(auctionsPrefix)
+                || viewTitle.startsWith(ordersPrefix);
+    }
+
+    private Map<String, String> pagePlaceholders(int page, int maxPages) {
         Map<String, String> map = new HashMap<>();
         map.put("%page%", String.valueOf(page));
         map.put("%maxpage%", String.valueOf(maxPages));
@@ -662,12 +657,12 @@ public void onInventoryClose(InventoryCloseEvent event) {
         return map;
     }
 
-    private String applyPagePlaceholders(String text, int page, int maxPages) {
-        return replacePlaceholders(text, pagePlaceholderMap(page, maxPages));
+    private String replacePagePlaceholders(String text, int page, int maxPages) {
+        return applyPlaceholders(text, pagePlaceholders(page, maxPages));
     }
 
-    private String replacePlaceholders(String text, Map<String, String> placeholders) {
-        if (text == null) return "";
+    private String applyPlaceholders(String text, Map<String, String> placeholders) {
+        if (text == null || placeholders == null) return text;
         String result = text;
         for (Map.Entry<String, String> entry : placeholders.entrySet()) {
             result = result.replace(entry.getKey(), entry.getValue());
@@ -675,8 +670,8 @@ public void onInventoryClose(InventoryCloseEvent event) {
         return result;
     }
 
-    private int normalizeSize(int size, int min) {
-        return Math.max(min, Math.min(54, size - (size % 9)));
+    private int normalizeSize(int raw, int min) {
+        return Math.max(min, Math.min(54, raw - (raw % 9)));
     }
 
     private String color(String text) {
@@ -684,11 +679,11 @@ public void onInventoryClose(InventoryCloseEvent event) {
     }
 
     private enum MenuType {
-        MAIN, PLAYERS, MANAGE_PLAYER, AUCTIONS, ORDERS
+        NONE, MAIN, PLAYERS, MANAGE_PLAYER, BAN_REASON, AUCTIONS, ORDERS
     }
 
     private static class AdminSession {
-        MenuType currentMenu = MenuType.MAIN;
+        MenuType currentMenu = MenuType.NONE;
         int page = 1;
         UUID targetPlayer = null;
         final Map<Integer, UUID> displayedPlayers = new HashMap<>();
